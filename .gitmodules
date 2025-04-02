@@ -1,3 +1,11 @@
 [submodule "C/C_opengl/lib/glfw"]
 	path = C/C_opengl/lib/glfw
 	url = git@github.com:glfw/glfw.git
+
+[submodule "C/C_learning_opengl/hello_triangle/lib/glfw"]
+	path = C/C_learning_opengl/hello_triangle/lib/glfw
+	url = git@github.com:glfw/glfw.git
+
+[submodule "C/C_learning_opengl/creating_a_window/lib/glfw"]
+	path = C/C_learning_opengl/creating_a_window/lib/glfw
+	url = git@github.com:glfw/glfw.git
