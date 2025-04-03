@@ -49,14 +49,13 @@ int main () {
         return -1;
     }
 
-    printf("hello\n");
-
     unsigned int vertexShader;
     vertexShader = glCreateShader(GL_VERTEX_SHADER);
 
     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
     glCompileShader(vertexShader);
 
+    
     // check if shader compilation was successful
     int success;
     char infoLog[512];
@@ -67,6 +66,7 @@ int main () {
         printf("ERROR::SHADER::VERTEX::COMPILATION::FAILED\n");
         printf("%s\n", infoLog);
     }
+    
     
     unsigned int fragmentShader;
     fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -97,17 +97,21 @@ int main () {
         printf("%s\n", infoLog);
     }
 
+    
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
     float vertices[] = {
         -0.5f, -0.5f, 0.0f,
          0.5f, -0.5f, 0.0f,
-         0.0f,  0.5f, 0.0f
+         -0.5f,  0.5f, 0.0f,
+         0.5f, -0.5f, 0.0f,
+         -0.5f, -0.5f, 0.0f,
+         -0.5f,  0.5f, 0.0f,
     };  
 
     unsigned int VAO;
-    glCreateVertexArrays(1, &VAO);
+    glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);  
     
     unsigned int VBO;
@@ -131,7 +135,7 @@ int main () {
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
         
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_LINES, 0, sizeof(vertices)/ sizeof(vertices[0]));
 
         glfwSwapBuffers(window);
         glfwPollEvents();
