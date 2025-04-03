@@ -1,4 +1,8 @@
-building on MinGW
+# cloning, since there are submodules
+
+`git clone <source> --recursive`
+
+# building on MinGW
 
 navigate to the parent directory of a project (contains lib and src folders)
 
