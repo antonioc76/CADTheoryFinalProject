@@ -65,22 +65,18 @@ class MainWindow(wdg.QDialog):
         # labels and fields
         self.sketchContainer = wdg.QWidget()
         layout = wdg.QGridLayout(self.sketchContainer)
-        xLabel = wdg.QLabel("X offset:")
-        yLabel = wdg.QLabel("Y offset:")
-        zLabel = wdg.QLabel("Z offset:")
         
-        xField = wdg.QLineEdit()
-        yField = wdg.QLineEdit()
-        zField = wdg.QLineEdit()
 
-        layout.addWidget(xLabel, 0, 0)
-        layout.addWidget(yLabel, 1, 0)
-        layout.addWidget(zLabel, 2, 0)
-        layout.addWidget(xField, 0, 2)
-        layout.addWidget(yField, 1, 2)
-        layout.addWidget(zField, 2, 2)
+        # plane selection
+        xyButton = wdg.QPushButton("XY Plane")
+        yzButton = wdg.QPushButton("YZ Plane")
+        zxButton = wdg.QPushButton("ZX Plane")
 
-        # buttons
+        layout.addWidget(xyButton, 0, 0)
+        layout.addWidget(yzButton, 0, 1)
+        layout.addWidget(zxButton, 0, 2)
+
+        
         sketchPlanePlotButton = wdg.QPushButton("Preview")
         sketchPlaneAcceptButton = wdg.QPushButton("Accept")
         layout.addWidget(sketchPlanePlotButton, 3, 1)
