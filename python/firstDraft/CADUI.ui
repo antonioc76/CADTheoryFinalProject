@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>969</width>
+    <height>727</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QWidget" name="horizontalLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>971</width>
+     <height>731</height>
+    </rect>
+   </property>
+   <layout class="QHBoxLayout" name="HLayoutOuter">
+    <item>
+     <layout class="QVBoxLayout" name="mplContainer"/>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="UISection">
+      <item>
+       <widget class="QPushButton" name="sketchPlaneButton">
+        <property name="text">
+         <string>sketch plane</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="sketchButton">
+        <property name="text">
+         <string>sketch</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="surfaceButton">
+        <property name="text">
+         <string>surface</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="transformationButton">
+        <property name="text">
+         <string>transformation</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QWidget" name="optionInterface" native="true">
+          <widget class="QWidget" name="verticalLayoutWidget_4">
+           <property name="geometry">
+            <rect>
+             <x>0</x>
+             <y>0</y>
+             <width>481</width>
+             <height>631</height>
+            </rect>
+           </property>
+           <layout class="QVBoxLayout" name="optionLayout"/>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
