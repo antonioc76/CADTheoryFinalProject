@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Form</class>
- <widget class="QWidget" name="Form">
+ <class>EduCAD</class>
+ <widget class="QWidget" name="EduCAD">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>969</width>
+    <width>978</width>
     <height>727</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>EduCAD</string>
   </property>
   <widget class="QWidget" name="horizontalLayoutWidget">
    <property name="geometry">
@@ -63,10 +63,10 @@
           <widget class="QWidget" name="verticalLayoutWidget_4">
            <property name="geometry">
             <rect>
-             <x>0</x>
-             <y>0</y>
-             <width>481</width>
-             <height>631</height>
+             <x>10</x>
+             <y>10</y>
+             <width>431</width>
+             <height>581</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="optionLayout"/>
