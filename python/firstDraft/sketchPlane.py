@@ -4,13 +4,6 @@ import numpy as np
 
 from CADUtils import Offset
 
-# class Offset:
-#     def __init__(self, x, y, z):
-#         self.x = x
-#         self.y = y
-#         self.z = z
-
-
 class SketchPlane:
     def __init__(self, name, initial_orientation, density, p0:sp.Matrix, p1:sp.Matrix, q0:sp.Matrix, q1:sp.Matrix, alpha=0, beta=0, gamma=0, offset=Offset(0, 0, 0), color='blue'):
         self.name = name
@@ -32,9 +25,22 @@ class SketchPlane:
 
         self.u_eval = np.linspace(0, 1, self.density)
         self.w_eval = np.linspace(0, 1, self.density)
-
+        
+        match self.initial_orientation:
+            case 'xy':
+                normal_vector_endpoint = sp.Matrix([[0, 0, 1]])
+            case 'yz':
+                normal_vector_endpoint = sp.Matrix([[1, 0, 0]])
+            case 'xz':
+                normal_vector_endpoint = sp.Matrix([[0, 1, 0]])
+        
         self.Nsl = sp.Matrix([[0, 1],
                          [1, 1]]) ** -1
+        
+        self.Gsl_normal_vector = sp.Matrix([[0, 0, 0],
+                                            normal_vector_endpoint])
+        
+        self.normal_vector = U * self.Nsl * self.Gsl_normal_vector
         
         self.Gsl1 = sp.Matrix([p0, p1])
 
@@ -83,6 +89,14 @@ class SketchPlane:
         return self.S_u_w_lines
     
 
+    def generate_normal_vector_trace(self, magnitude):
+        Psl_normal_vector_callable = sp.lambdify(self.u, self.normal_vector)
+        
+        Psl_normal_vector_eval = self.evaluate(Psl_normal_vector_callable)
+
+        return(Psl_normal_vector_eval)
+    
+
     def evaluate(self, P):
         u_eval = np.linspace(0, 1, self.density)
         P_eval = np.empty((0, 3))
@@ -118,6 +132,12 @@ class SketchPlane:
 
         self.S_u_w = S_u_w_h_transformed[:-1, :].T
 
+        normal_vector_h = self.normal_vector.T.row_insert(self.normal_vector.T.rows, sp.Matrix([1]))
+
+        normal_vector_h_transformed = self.Tx * self.Ty * self.Tz * normal_vector_h
+
+        self.normal_vector = normal_vector_h_transformed[:-1, :].T
+
 
     def rotate(self, alpha, beta, gamma):
         # rotation matrices
@@ -142,6 +162,14 @@ class SketchPlane:
         
         self.S_u_w = S_u_w_h_transformed[:-1, :].T
 
+        # normal vector
+
+        normal_vector_h = self.normal_vector.T.row_insert(self.normal_vector.T.rows, sp.Matrix([1]))
+
+        normal_vector_h_transformed = self.Trz * self.Try * self.Trx * normal_vector_h
+
+        self.normal_vector = normal_vector_h_transformed[:-1, :].T
+
     
 if __name__ == "__main__":
     figure = plt.figure()
@@ -155,10 +183,18 @@ if __name__ == "__main__":
 
     myPlane = SketchPlane("myPlane", "xy", 40, p0, p1, q0, q1, 0, 0, 0, Offset(0, 0, 20), color='red')
 
+    myPlane.translate(Offset(0, 10, 0))
+
+    myPlane.rotate(-30, 0, 0)
+
     lines = myPlane.generate_traces()
 
     for line in lines:
         axes.plot(line[:, 0], line[:, 1], line[:, 2], color=myPlane.color)
+
+    normal_vector_trace = myPlane.generate_normal_vector_trace(10)
+
+    axes.plot(normal_vector_trace[:, 0], normal_vector_trace[:, 1], normal_vector_trace[:, 2])
 
     axes.set_xlim((0, 100))
     axes.set_ylim((0, 100))

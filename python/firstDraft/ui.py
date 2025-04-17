@@ -320,26 +320,26 @@ class MainWindow(wdg.QDialog):
             case 'xy':
                 initial_orientation = 'xy'
                 color = 'blue'
-                p0 = sp.Matrix([[0, 0, 0]])
-                p1 = sp.Matrix([[0, 100, 0]])
+                p0 = sp.Matrix([[-100, -100, 0]])
+                p1 = sp.Matrix([[-100, 100, 0]])
 
-                q0 = sp.Matrix([[100, 0, 0]])
+                q0 = sp.Matrix([[100, -100, 0]])
                 q1 = sp.Matrix([[100, 100, 0]])
             case 'yz':
                 initial_orientation = 'yz'
                 color = 'blue'
-                p0 = sp.Matrix([[0, 0, 0]])
-                p1 = sp.Matrix([[0, 0, 100]])
+                p0 = sp.Matrix([[0, -100, -100]])
+                p1 = sp.Matrix([[0, -100, 100]])
 
-                q0 = sp.Matrix([[0, 100, 0]])
+                q0 = sp.Matrix([[0, 100, -100]])
                 q1 = sp.Matrix([[0, 100, 100]])
             case 'xz':
                 initial_orientation = 'xz'
                 color = 'blue'
-                p0 = sp.Matrix([[0, 0, 0]])
-                p1 = sp.Matrix([[0, 0, 100]])
+                p0 = sp.Matrix([[-100, 0, -100]])
+                p1 = sp.Matrix([[-100, 0, 100]])
 
-                q0 = sp.Matrix([[100, 0, 0]])
+                q0 = sp.Matrix([[100, 0, -100]])
                 q1 = sp.Matrix([[100, 0, 100]])
             case _:
                 return
@@ -365,26 +365,26 @@ class MainWindow(wdg.QDialog):
             case 'xy':
                 initial_orientation = 'xy'
                 color='blue'
-                p0 = sp.Matrix([[0, 0, 0]])
-                p1 = sp.Matrix([[0, 100, 0]])
+                p0 = sp.Matrix([[-100, -100, 0]])
+                p1 = sp.Matrix([[-100, 100, 0]])
 
-                q0 = sp.Matrix([[100, 0, 0]])
+                q0 = sp.Matrix([[100, -100, 0]])
                 q1 = sp.Matrix([[100, 100, 0]])
             case 'yz':
                 initial_orientation = 'yz'
                 color='blue'
-                p0 = sp.Matrix([[0, 0, 0]])
-                p1 = sp.Matrix([[0, 0, 100]])
+                p0 = sp.Matrix([[0, -100, -100]])
+                p1 = sp.Matrix([[0, -100, 100]])
 
-                q0 = sp.Matrix([[0, 100, 0]])
+                q0 = sp.Matrix([[0, 100, -100]])
                 q1 = sp.Matrix([[0, 100, 100]])
             case 'xz':
                 initial_orientation = 'xz'
                 color='blue'
-                p0 = sp.Matrix([[0, 0, 0]])
-                p1 = sp.Matrix([[0, 0, 100]])
+                p0 = sp.Matrix([[-100, 0, -100]])
+                p1 = sp.Matrix([[-100, 0, 100]])
 
-                q0 = sp.Matrix([[100, 0, 0]])
+                q0 = sp.Matrix([[100, 0, -100]])
                 q1 = sp.Matrix([[100, 0, 100]])
             case _:
                 return
@@ -489,9 +489,9 @@ class MainWindow(wdg.QDialog):
 
     
     def set_limits_3d(self):
-        self.sc.axes.set_xlim((0, 100))
-        self.sc.axes.set_ylim((0, 100))
-        self.sc.axes.set_zlim((0, 100))
+        self.sc.axes.set_xlim((-100, 100))
+        self.sc.axes.set_ylim((-100, 100))
+        self.sc.axes.set_zlim((-100, 100))
 
 
     def set_labels_2d(self, initial_orientation : str):
@@ -508,8 +508,8 @@ class MainWindow(wdg.QDialog):
 
     
     def set_limits_2d(self):
-        self.sc.axes.set_xlim((0, 100))
-        self.sc.axes.set_ylim((0, 100))
+        self.sc.axes.set_xlim((-100, 100))
+        self.sc.axes.set_ylim((-100, 100))
     
 
     def sanitizeSketchPlaneInput(self):
