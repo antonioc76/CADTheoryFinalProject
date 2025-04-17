@@ -11,15 +11,18 @@ from CADUtils import Offset
 #         self.z = z
 
 
-class RuledSurface:
-    def __init__(self, name, density, p0:sp.Matrix, p1:sp.Matrix, q0:sp.Matrix, q1:sp.Matrix, alpha=0, beta=0, gamma=0, offset=Offset(0, 0, 0)):
+class SketchPlane:
+    def __init__(self, name, initial_orientation, density, p0:sp.Matrix, p1:sp.Matrix, q0:sp.Matrix, q1:sp.Matrix, alpha=0, beta=0, gamma=0, offset=Offset(0, 0, 0), color='blue'):
         self.name = name
+        self.initial_orientation = initial_orientation
         self.density = density
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
 
         self.offset = offset
+
+        self.color = color
 
         self.u = sp.symbols('u')
         self.w = sp.symbols('w')
@@ -57,6 +60,7 @@ class RuledSurface:
     
 
     def generate_traces(self):
+        self.S_u_w_lines = []
         self.S_u_w_callable = sp.lambdify([self.u, self.w], self.S_u_w)
         # traces along u lines
         for i in range(len(self.w_eval)):
@@ -93,48 +97,48 @@ class RuledSurface:
     def translate(self, offset=Offset(0, 0, 0)):
         # translation matrices
 
-        Tx = sp.Matrix([[1, 0, 0, offset.x],
+        self.Tx = sp.Matrix([[1, 0, 0, offset.x],
                         [0, 1, 0, 0],
                         [0, 0, 1, 0],
                         [0, 0, 0, 1]])
         
-        Ty = sp.Matrix([[1, 0, 0, 0],
+        self.Ty = sp.Matrix([[1, 0, 0, 0],
                         [0, 1, 0, offset.y],
                         [0, 0, 1, 0],
                         [0, 0, 0, 1]])
         
-        Tz = sp.Matrix([[1, 0, 0, 0],
+        self.Tz = sp.Matrix([[1, 0, 0, 0],
                         [0, 1, 0, 0],
                         [0, 0, 1, offset.z],
                         [0, 0, 0, 1]])
         
         S_u_w_h = self.S_u_w.T.row_insert(self.S_u_w.T.rows, sp.Matrix([1]))
 
-        S_u_w_h_transformed = Tx * Ty * Tz * S_u_w_h
+        S_u_w_h_transformed = self.Tx * self.Ty * self.Tz * S_u_w_h
 
         self.S_u_w = S_u_w_h_transformed[:-1, :].T
 
 
     def rotate(self, alpha, beta, gamma):
         # rotation matrices
-        Trx = sp.Matrix([[1, 0, 0, 0],
+        self.Trx = sp.Matrix([[1, 0, 0, 0],
                         [0, np.cos(np.radians(alpha)), -np.sin(np.radians(alpha)), 0],
                         [0, np.sin(np.radians(alpha)), np.cos(np.radians(alpha)), 0],
                         [0, 0, 0, 1]])
         
-        Try = sp.Matrix([[np.cos(np.radians(beta)), 0, -np.sin(np.radians(beta)), 0],
+        self.Try = sp.Matrix([[np.cos(np.radians(beta)), 0, -np.sin(np.radians(beta)), 0],
                               [0, 1, 0, 0],
                               [np.sin(np.radians(beta)), 0, np.cos(np.radians(beta)), 0],
                               [0, 0, 0, 1]])
 
-        Trz = sp.Matrix([[np.cos(np.radians(gamma)), -np.sin(np.radians(gamma)), 0, 0],
+        self.Trz = sp.Matrix([[np.cos(np.radians(gamma)), -np.sin(np.radians(gamma)), 0, 0],
                          [np.sin(np.radians(gamma)), np.cos(np.radians(gamma)), 0, 0],
                          [0, 0, 1, 0],
                          [0, 0, 0, 1]])
         
         S_u_w_h = self.S_u_w.T.row_insert(self.S_u_w.T.rows, sp.Matrix([1]))
 
-        S_u_w_h_transformed = Trz * Try * Trx * S_u_w_h
+        S_u_w_h_transformed = self.Trz * self.Try * self.Trx * S_u_w_h
         
         self.S_u_w = S_u_w_h_transformed[:-1, :].T
 
@@ -149,12 +153,12 @@ if __name__ == "__main__":
     q0 = sp.Matrix([[100, 0, 0]])
     q1 = sp.Matrix([[100, 100, 0]])
 
-    myPlane = RuledSurface("myPlane", 40, p0, p1, q0, q1, 0, 0, 0, Offset(0, 0, 20))
+    myPlane = SketchPlane("myPlane", "xy", 40, p0, p1, q0, q1, 0, 0, 0, Offset(0, 0, 20), color='red')
 
     lines = myPlane.generate_traces()
 
     for line in lines:
-        axes.plot(line[:, 0], line[:, 1], line[:, 2], color='blue')
+        axes.plot(line[:, 0], line[:, 1], line[:, 2], color=myPlane.color)
 
     axes.set_xlim((0, 100))
     axes.set_ylim((0, 100))

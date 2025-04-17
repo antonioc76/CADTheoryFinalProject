@@ -14,7 +14,7 @@ from matplotlib.figure import Figure
 import sympy as sp
 import numpy as np
 
-from ruledSurface import RuledSurface
+from sketchPlane import SketchPlane
 from CADUtils import Offset
 
 
@@ -25,11 +25,19 @@ class FeatureTree:
         self.surfaces = []
 
 
-class MplCanvas(FigureCanvasQTAgg):
+class MplCanvas3d(FigureCanvasQTAgg):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(projection='3d')
+        super().__init__(self.fig)
+
+
+class MplCanvas(FigureCanvasQTAgg):
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
         super().__init__(self.fig)
 
 
@@ -55,17 +63,18 @@ class MainWindow(wdg.QDialog):
         self.tempSketchPlane = None
 
         # state flags
+        self.sketch_displayed = False
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = False
 
         # setup plot
-        self.sc = MplCanvas()
+        # self.sc = MplCanvas3d()
 
-        self.set_labels()
-        self.set_limits()
+        # self.set_labels()
+        # self.set_limits()
 
-        self.layout = self.HLayoutOuter
-        self.mplContainer.addWidget(self.sc) 
+        # self.mplContainer.addWidget(self.sc)
+        self.setup_3d_plot()
 
         self.show()
 
@@ -82,20 +91,50 @@ class MainWindow(wdg.QDialog):
         self.sketchButton.clicked.connect(self.sketch_dialogue)
 
 
+    def setup_3d_plot(self):
+        self.clear_mpl_container()
+        self.sc = MplCanvas3d()
+        
+        self.set_labels_3d()
+        self.set_limits_3d()
+
+        self.drawFeatures()
+
+        self.mplContainer.addWidget(self.sc)
+
+
+    def setup_2d_plot(self, initial_orientation : str):
+        self.clear_mpl_container()
+        self.sc = MplCanvas()
+
+        self.set_labels_2d(initial_orientation)
+        self.set_limits_2d()
+
+        self.mplContainer.addWidget(self.sc)
+
+
     def clear_option_layout(self):
         for i in reversed(range(self.optionLayout.count())): 
             self.optionLayout.itemAt(i).widget().setParent(None)
+
+
+    def clear_mpl_container(self):
+        for i in reversed(range(self.mplContainer.count())): 
+            self.mplContainer.itemAt(i).widget().setParent(None)
 
 
     def sketch_dialogue(self):
         if self.sketch_dialogue_displayed == True: 
             return
         
+        self.setup_3d_plot()
+        
         self.sketchContainer = wdg.QWidget()
         layout = wdg.QGridLayout(self.sketchContainer)
 
         self.clear_option_layout()
 
+        # sketch plane list
         sketchPlaneListLabel = wdg.QLabel("Select sketch plane")
         sketchPlaneList = wdg.QListWidget()
 
@@ -103,8 +142,9 @@ class MainWindow(wdg.QDialog):
 
         sketchPlaneList.addItems(names)
 
-        print(names)
+        sketchPlaneList.itemPressed.connect(lambda: self.sketch_plane_highlighted(sketchPlaneList.selectedItems()))
 
+        # buttons
         selectButton = wdg.QPushButton("Start Sketch")
         deleteButton = wdg.QPushButton("Delete Sketch")
 
@@ -113,13 +153,64 @@ class MainWindow(wdg.QDialog):
         layout.addWidget(deleteButton, 2, 0)
         layout.addWidget(selectButton, 2, 1)
 
+        # button callbacks
         deleteButton.clicked.connect(lambda: self.deleteSketchPlane(sketchPlaneList, sketchPlaneList.selectedItems()))
+        selectButton.clicked.connect(lambda: self.start_sketch(sketchPlaneList.selectedItems()))
 
         # end
         self.optionLayout.addWidget(self.sketchContainer)
 
+        self.sketch_displayed = False
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = True
+
+
+    def sketch_plane_highlighted(self, selectedItem):
+        if len(selectedItem) == 0:
+            return
+        
+        for sketchPlane in self.featureTree.sketchPlanes:
+            if sketchPlane.name == selectedItem[0].text():
+                sketchPlane.color = 'orange'
+            
+            else: sketchPlane.color = 'blue'
+
+        self.setup_3d_plot()
+
+
+    def start_sketch(self, selectedItem):
+        if len(selectedItem) == 0:
+            return
+        
+        selectedSketchPlane = [sketchPlane for sketchPlane in self.featureTree.sketchPlanes if sketchPlane.name == selectedItem[0].text()][0]
+
+        selectedSketchPlane : SketchPlane
+
+        print(selectedSketchPlane.name)
+
+        self.clear_option_layout()
+        self.sketchContainer.deleteLater()
+
+        self.setup_2d_plot(selectedSketchPlane.initial_orientation)
+
+        self.sketchContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.sketchContainer)
+
+        straightLineButton = wdg.QPushButton("Straight Line")
+        splineButton = wdg.QPushButton("Spline")
+        bezierButton = wdg.QPushButton("Bezier Curve")
+
+        layout.addWidget(straightLineButton, 0, 0)
+        layout.addWidget(splineButton, 0, 1)
+        layout.addWidget(bezierButton, 0, 2)
+
+        # end
+        self.optionLayout.addWidget(self.sketchContainer)
+
+        # state flags
+        self.sketch_displayed = True
+        self.sketch_plane_dialogue_displayed = False
+        self.sketch_dialogue_displayed = False
 
 
     def deleteSketchPlane(self, sketchPlaneList, items):
@@ -134,11 +225,18 @@ class MainWindow(wdg.QDialog):
 
         self.drawFeatures()
 
+        # ui flags
+        self.sketch_displayed = True
+        self.sketch_plane_dialogue_displayed = False
+        self.sketch_dialogue_displayed = False
+
 
     def sketch_plane_dialogue(self):
         if self.sketch_plane_dialogue_displayed == True: 
             return
         
+        self.setup_3d_plot()
+
         self.angle_widgets_displayed = False
         self.offset_widgets_displayed = False
 
@@ -182,28 +280,33 @@ class MainWindow(wdg.QDialog):
 
         self.sketch_plane_dialogue_displayed = True
         self.sketch_dialogue_displayed = False
+        self.sketch_displayed = False
 
 
     def escape_sketch_plane(self):
         self.sketchPlaneContainer.deleteLater()
         self.sketch_plane_dialogue_displayed = False
 
-        # TODO: WIPE CANVAS AND REDRAW ACTUAL FEATURES ONLY
+        # wipe canvas
         self.sc.axes.cla()
-        self.set_labels()
-        self.set_limits()
+        self.set_labels_3d()
+        self.set_limits_3d()
 
+        # draw features
         self.drawFeatures()
 
 
     def accept_sketch_plane(self):
+        if self.tempSketchPlane is None:
+            return
+        
         self.sketchPlaneContainer.deleteLater()
         self.sketch_plane_dialogue_displayed = False
 
         # TODO: WIPE CANVAS AND REDRAW ACTUAL FEATURES ONLY
         self.sc.axes.cla()
-        self.set_labels()
-        self.set_limits()
+        self.set_labels_3d()
+        self.set_limits_3d()
 
         self.featureTree.sketchPlanes.append(self.tempSketchPlane)
         self.tempSketchPlane = None
@@ -215,18 +318,24 @@ class MainWindow(wdg.QDialog):
         self.sc.axes.cla()
         match self.selectedSketchPlane:
             case 'xy':
+                initial_orientation = 'xy'
+                color = 'blue'
                 p0 = sp.Matrix([[0, 0, 0]])
                 p1 = sp.Matrix([[0, 100, 0]])
 
                 q0 = sp.Matrix([[100, 0, 0]])
                 q1 = sp.Matrix([[100, 100, 0]])
             case 'yz':
+                initial_orientation = 'yz'
+                color = 'blue'
                 p0 = sp.Matrix([[0, 0, 0]])
                 p1 = sp.Matrix([[0, 0, 100]])
 
                 q0 = sp.Matrix([[0, 100, 0]])
                 q1 = sp.Matrix([[0, 100, 100]])
             case 'xz':
+                initial_orientation = 'xz'
+                color = 'blue'
                 p0 = sp.Matrix([[0, 0, 0]])
                 p1 = sp.Matrix([[0, 0, 100]])
 
@@ -235,16 +344,16 @@ class MainWindow(wdg.QDialog):
             case _:
                 return
         
-        sketchPlane = RuledSurface(f"Plane{len(self.featureTree.sketchPlanes)}", 10, p0, p1, q0, q1)
+        sketchPlane = SketchPlane(f"Plane{len(self.featureTree.sketchPlanes)}", initial_orientation, 10, p0, p1, q0, q1, color=color)
 
         sketchPlaneTraces = sketchPlane.generate_traces()
 
         self.sc.axes.cla()
         for trace in sketchPlaneTraces:
-            self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color='blue', alpha=0.3)
+            self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=sketchPlane.color, alpha=0.3)
 
-        self.set_labels()
-        self.set_limits()
+        self.set_labels_3d()
+        self.set_limits_3d()
         self.sc.figure.canvas.draw()
 
         self.tempSketchPlane = sketchPlane
@@ -254,18 +363,24 @@ class MainWindow(wdg.QDialog):
         self.sc.axes.cla()
         match self.selectedSketchPlane:
             case 'xy':
+                initial_orientation = 'xy'
+                color='blue'
                 p0 = sp.Matrix([[0, 0, 0]])
                 p1 = sp.Matrix([[0, 100, 0]])
 
                 q0 = sp.Matrix([[100, 0, 0]])
                 q1 = sp.Matrix([[100, 100, 0]])
             case 'yz':
+                initial_orientation = 'yz'
+                color='blue'
                 p0 = sp.Matrix([[0, 0, 0]])
                 p1 = sp.Matrix([[0, 0, 100]])
 
                 q0 = sp.Matrix([[0, 100, 0]])
                 q1 = sp.Matrix([[0, 100, 100]])
             case 'xz':
+                initial_orientation = 'xz'
+                color='blue'
                 p0 = sp.Matrix([[0, 0, 0]])
                 p1 = sp.Matrix([[0, 0, 100]])
 
@@ -274,7 +389,7 @@ class MainWindow(wdg.QDialog):
             case _:
                 return
         
-        sketchPlane = RuledSurface(f"Plane{len(self.featureTree.sketchPlanes)}", 10, p0, p1, q0, q1)
+        sketchPlane = SketchPlane(f"Plane{len(self.featureTree.sketchPlanes)}", initial_orientation, 10, p0, p1, q0, q1, color=color)
 
         self.sanitizeSketchPlaneInput()
 
@@ -290,10 +405,10 @@ class MainWindow(wdg.QDialog):
 
         self.sc.axes.cla()
         for trace in sketchPlaneTraces:
-            self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color='blue', alpha=0.3)
+            self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=sketchPlane.color, alpha=0.3)
 
-        self.set_labels()
-        self.set_limits()
+        self.set_labels_3d()
+        self.set_limits_3d()
         self.sc.figure.canvas.draw()
 
         self.tempSketchPlane = sketchPlane
@@ -367,16 +482,34 @@ class MainWindow(wdg.QDialog):
         self.offset_widgets_displayed = True
 
 
-    def set_labels(self):
+    def set_labels_3d(self):
         self.sc.axes.set_xlabel("X")
         self.sc.axes.set_ylabel("Y")
         self.sc.axes.set_zlabel("Z")
 
     
-    def set_limits(self):
+    def set_limits_3d(self):
         self.sc.axes.set_xlim((0, 100))
         self.sc.axes.set_ylim((0, 100))
         self.sc.axes.set_zlim((0, 100))
+
+
+    def set_labels_2d(self, initial_orientation : str):
+        match initial_orientation:
+            case 'xy':
+                self.sc.axes.set_xlabel("X")
+                self.sc.axes.set_ylabel("Y", rotation=0)
+            case 'yz':
+                self.sc.axes.set_xlabel("Y")
+                self.sc.axes.set_ylabel("Z", rotation=0)
+            case 'xz':
+                self.sc.axes.set_xlabel("X")
+                self.sc.axes.set_ylabel("Z", rotation=0)
+
+    
+    def set_limits_2d(self):
+        self.sc.axes.set_xlim((0, 100))
+        self.sc.axes.set_ylim((0, 100))
     
 
     def sanitizeSketchPlaneInput(self):
@@ -385,16 +518,19 @@ class MainWindow(wdg.QDialog):
 
     def drawFeatures(self):
         self.sc.axes.cla()
+
+        print(self.featureTree.sketchPlanes)
+
         for sketchPlane in self.featureTree.sketchPlanes:
             sketchPlaneTraces = sketchPlane.generate_traces()
 
             sp.pretty_print(sketchPlane.S_u_w)
 
             for trace in sketchPlaneTraces:
-                self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color='blue', alpha=0.1)
+                self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=sketchPlane.color, alpha=0.3)
 
-        self.set_labels()
-        self.set_limits()
+        self.set_labels_3d()
+        self.set_limits_3d()
         self.sc.figure.canvas.draw()
 
 
