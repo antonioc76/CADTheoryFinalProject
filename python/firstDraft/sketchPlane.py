@@ -109,6 +109,7 @@ class SketchPlane:
     
 
     def translate(self, offset=Offset(0, 0, 0)):
+        offset.subtract(self.offset)
         # translation matrices
 
         self.Tx = sp.Matrix([[1, 0, 0, offset.x],
@@ -138,8 +139,18 @@ class SketchPlane:
 
         self.normal_vector = normal_vector_h_transformed[:-1, :].T
 
+        self.offset.add(offset)
+
 
     def rotate(self, alpha, beta, gamma):
+        alpha = alpha - self.alpha
+        beta = beta - self.beta
+        gamma = gamma - self.gamma
+
+        self.alpha += alpha
+        self.beta += beta
+        self.gamma += gamma
+
         # rotation matrices
         self.Trx = sp.Matrix([[1, 0, 0, 0],
                         [0, np.cos(np.radians(alpha)), -np.sin(np.radians(alpha)), 0],
