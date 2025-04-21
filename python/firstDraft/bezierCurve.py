@@ -1,37 +1,46 @@
 import sympy as sp
 import matplotlib.pyplot as plt
 import numpy as np
+
 from CADUtils import Offset
 
 from sketchPlane import SketchPlane
 
-class StraightLine:
-    def __init__(self, name, p0, p1, density, sketchPlane : SketchPlane, alpha=0, beta=0, gamma=0, offset=Offset(0, 0, 0), color='blue'):
+class BezierCurve:
+    def __init__(self, name, controlPoints, density, sketchPlane : SketchPlane, alpha=0, beta=0, gamma=0, offset=Offset(0, 0, 0), color='blue'):
         self.name = name
 
         self.color = color
-
-        self.alpha = alpha
-
-        self.beta = beta
-        
-        self.gamma = gamma
-
-        self.offset = offset
 
         self.density = density
 
         self.normal_vector = sketchPlane.normal_vector
 
+        self.alpha = alpha
+
+        self.beta = beta
+
+        self.gamma = gamma
+
+        self.offset = offset
+
         self.u = sp.symbols('u')
 
-        self.U = sp.Matrix([[self.u, 1]])
+        num = controlPoints.rows
+        match num:
+            case 3:
+                self.U = sp.Matrix([[self.u**2, self.u, 1]])
+                self.Nspl = sp.Matrix([[1, -2, 1], [-2, 2, 0], [1, 0, 0]])
+            case 4:
+                self.U = sp.Matrix([[self.u**3, self.u ** 2, self.u, 1]])
+                self.Nspl = sp.Matrix([[-1, 3, -3, 1], [3, -6, 3, 0], [-3, 3, 0, 0], [1, 0, 0, 0]])
+            case 5:
+                self.U = sp.Matrix([[self.u**4, self.u**3, self.u**2, self.u, 1]])
+                self.Nspl = sp.Matrix([[1, -4, 6, -4, 1], [-4, 12, -12, 4, 0], [6, -12, 6, 0, 0], [-4, 4, 0, 0, 0], [1, 0, 0, 0, 0]])
 
-        self.Nsl = sp.Matrix([[0, 1], [1, 1]]) ** -1
+        self.Gsl = controlPoints
 
-        self.Gsl = sp.Matrix([p0, p1])
-
-        self.P_u = self.U * self.Nsl * self.Gsl
+        self.P_u = self.U * self.Nspl * self.Gsl
 
 
     def generate_trace(self):
@@ -74,8 +83,6 @@ class StraightLine:
         P_u_h_transformed = self.Tx * self.Ty * self.Tz * P_u_h
 
         self.P_u = P_u_h_transformed[:-1, :].T
-
-        self.offset.add(offset)
 
         # normal vector
 
@@ -127,34 +134,30 @@ class StraightLine:
 
 
 if __name__ == "__main__":
-    p0 = sp.Matrix([[0, 0, 0]])
+    cps = sp.Matrix([[-20, 0, -30], [0, 0, 30], [20, 0, 0], [50, 0, 30], [60, 0, -20]])
 
-    p1 = sp.Matrix([[10, 0, 0]])
+    sp.pretty_print(cps)
 
-    p0 = sp.Matrix([[-100, -100, 0]])
-    p1 = sp.Matrix([[-100, 100, 0]])
+    myBezierCurve = BezierCurve("bezier 1", cps, 40)
 
-    q0 = sp.Matrix([[100, -100, 0]])
-    q1 = sp.Matrix([[100, 100, 0]])
+    # mySpline.rotate(0, 0, 180)
 
-    myPlane = SketchPlane('plane', 'xy', 40, p0, p1, q0, q1)
+    # mySpline.translate(Offset(3, 2, 0))
 
-    myLine = StraightLine('my line', myPlane, p0, p1, 40)
-
-    myLine.rotate(0, 0, 0)
-
-    myLine.translate(Offset(4, 0, 0))
-
-    myLine_eval = myLine.generate_trace()
+    trace = myBezierCurve.generate_trace()
 
     figure = plt.figure()
 
     axes = figure.add_subplot()
 
-    axes.plot(myLine_eval[:, 0], myLine_eval[:, 1])
+    axes.plot(trace[:, 0], trace[:, 2])
 
-    axes.set_xlim((-10, 10))
+    axes.plot(cps[:, 0], cps[:, 2], color='red', linestyle='--')
 
-    axes.set_ylim((-10, 10))
+    axes.scatter(cps[:, 0], cps[:, 2], color='red')
+
+    axes.set_xlim((-100, 100))
+
+    axes.set_ylim((-100, 100))
 
     plt.show()

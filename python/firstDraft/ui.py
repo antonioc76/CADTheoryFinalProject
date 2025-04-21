@@ -1,4 +1,5 @@
 import PyQt6 as qt
+from PyQt6.QtCore import Qt
 import PyQt6.QtWidgets as wdg
 from PyQt6.uic import loadUi
 import os
@@ -17,6 +18,10 @@ import numpy as np
 from CADUtils import Offset
 from sketchPlane import SketchPlane
 from straightLine import StraightLine
+from spline import Spline
+from bezierCurve import BezierCurve
+
+from cylindricalSurface import CylindricalSurface
 
 
 class FeatureTree:
@@ -40,6 +45,11 @@ class FeatureTree:
     def add_curve(self, curve):
         self.curves.append(curve)
         self.curveCount += 1
+
+    
+    def add_surface(self, surface):
+        self.surfaces.append(surface)
+        self.surfaceCount += 1
 
 
 class MplCanvas3d(FigureCanvasQTAgg):
@@ -83,8 +93,9 @@ class MainWindow(wdg.QDialog):
         self.sketch_displayed = False
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = False
+        self.surface_dialogue_displayed = False
 
-        #setup plot
+        # setup plot
         self.setup_3d_plot()
 
         self.show()
@@ -100,6 +111,7 @@ class MainWindow(wdg.QDialog):
         # setup callback functions
         self.sketchPlaneButton.clicked.connect(self.sketch_plane_dialogue)
         self.sketchButton.clicked.connect(self.sketch_dialogue)
+        self.surfaceButton.clicked.connect(self.surface_dialogue)
 
 
     def setup_3d_plot(self):
@@ -109,7 +121,7 @@ class MainWindow(wdg.QDialog):
         self.set_labels_3d()
         self.set_limits_3d()
 
-        self.drawFeatures()
+        self.draw_features()
 
         self.mplContainer.addWidget(self.sc)
 
@@ -132,6 +144,193 @@ class MainWindow(wdg.QDialog):
     def clear_mpl_container(self):
         for i in reversed(range(self.mplContainer.count())): 
             self.mplContainer.itemAt(i).widget().setParent(None)
+
+        for i in reversed(range(self.mplContainer.count())): 
+            self.mplContainer.itemAt(i).widget().setParent(None)        
+
+
+    def surface_dialogue(self):
+        if self.surface_dialogue_displayed == True: 
+            return
+        
+        self.color_all_sketchplanes_blue()
+        
+        self.setup_3d_plot()
+
+        self.angle_widgets_displayed = False
+        self.offset_widgets_displayed = False
+
+        # labels and fields
+        depthLabel = wdg.QLabel("Extrusion Depth: ")
+
+        depthField = wdg.QLineEdit()
+
+        self.surfaceContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.surfaceContainer)
+        
+        # surface selection
+        cylindricalButton = wdg.QPushButton("Extruded Surface")
+        ruledButton = wdg.QPushButton("Ruled Surface")
+        loftButton = wdg.QPushButton("Loft Surface")
+        revolveButton = wdg.QPushButton("Swept Surface")
+
+        layout.addWidget(cylindricalButton, 0, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(ruledButton, 0, 1, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(loftButton, 0, 2, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(revolveButton, 0, 3, Qt.AlignmentFlag.AlignCenter)
+
+        curveLabel = wdg.QLabel("Select Curve")
+        curveList = wdg.QListWidget()
+
+        cylindricalButton.clicked.connect(lambda: self.cylindricalCalled(layout, depthLabel, depthField, curveLabel, curveList))
+        ruledButton.clicked.connect(lambda: self.ruledCalled(layout))
+        loftButton.clicked.connect(lambda: self.loftCalled(layout))
+        revolveButton.clicked.connect(lambda: self.revolveCalled(layout))
+
+        surfaceEscapeButton = wdg.QPushButton("Cancel")
+        surfacePlotButton = wdg.QPushButton("Preview")
+        surfaceAcceptButton = wdg.QPushButton("Accept")
+
+        layout.addWidget(surfaceEscapeButton, 9, 0)
+        layout.addWidget(surfacePlotButton, 9, 1)
+        layout.addWidget(surfaceAcceptButton, 9, 2)
+
+        # callbacks
+        surfaceEscapeButton.clicked.connect(lambda: self.escape_container(self.surfaceContainer))
+        surfacePlotButton.clicked.connect(lambda: self.preview_surface(curveList, depthField.text()))
+        surfaceAcceptButton.clicked.connect(lambda: self.accept_surface(curveList, depthField.text()))
+        
+        self.clear_option_layout()
+
+        self.optionLayout.addWidget(self.surfaceContainer)
+
+        # flags
+        self.surface_dialogue_displayed = True
+        self.sketch_plane_dialogue_displayed = False
+        self.sketch_dialogue_displayed = False
+        self.sketch_displayed = False
+
+    
+    def preview_surface(self, curveList, extrusion_depth):
+        if len(curveList.selectedItems()) == 0:
+            return
+        
+        print(curveList.selectedItems()[0].text())
+    
+        selectedCurve = None
+
+        for curve in self.featureTree.curves:
+            if curve.name == curveList.selectedItems()[0].text():
+                selectedCurve = curve
+
+        if selectedCurve is None:
+            return
+        
+        if extrusion_depth is None or extrusion_depth == '':
+            return
+
+        surface = CylindricalSurface(f"Surface{self.featureTree.surfaceCount}", selectedCurve, 10)
+
+        print(float(extrusion_depth))
+
+        surface.scale_q(float(extrusion_depth))
+
+        self.setup_3d_plot()
+
+        surface_traces = surface.generate_traces()
+
+        for trace in surface_traces:
+            self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=surface.color, alpha=0.4)
+
+        self.sc.figure.canvas.draw()
+
+
+    def accept_surface(self, curveList, extrusion_depth):
+        if len(curveList.selectedItems()) == 0:
+            return
+        
+        print(curveList.selectedItems()[0].text())
+    
+        selectedCurve = None
+
+        for curve in self.featureTree.curves:
+            if curve.name == curveList.selectedItems()[0].text():
+                selectedCurve = curve
+
+        if selectedCurve is None:
+            return
+        
+        if extrusion_depth is None or extrusion_depth == '':
+            return
+
+        surface = CylindricalSurface(f"Surface{self.featureTree.surfaceCount}", selectedCurve, 10)
+
+        print(float(extrusion_depth))
+
+        surface.scale_q(float(extrusion_depth))
+
+        self.featureTree.add_surface(surface)
+
+        self.clear_mpl_container()
+
+        self.escape_container(self.surfaceContainer)
+
+    
+    def cylindricalCalled(self, layout, depthLabel, depthField, curveLabel, curveList):
+        layout.addWidget(depthLabel, 8, 1)
+        layout.addWidget(depthField, 8, 2)
+
+        self.color_all_curves_blue()
+
+        self.setup_3d_plot()
+
+        names = [curve.name for curve in self.featureTree.curves]
+
+        curveList.addItems(names)
+
+        layout.addWidget(curveLabel, 1, 0, 1, 4)
+        layout.addWidget(curveList, 2, 0, 1, 4)
+
+        # callbacks
+        curveList.itemPressed.connect(lambda: self.cylindrical_curve_highlighted(curveList.selectedItems()))
+
+        print(names)
+
+    
+    def cylindrical_curve_highlighted(self, selectedItem):
+        if len(selectedItem) == 0:
+            return
+        
+        for curve in self.featureTree.curves:
+            if curve.name == selectedItem[0].text():
+                curve.color = 'orange'
+
+            else:
+                curve.color = 'blue'
+
+        self.setup_3d_plot()
+
+
+    def ruledCalled(self, layout):
+        curveLabel = wdg.QLabel("Select Curve")
+        curveList = wdg.QListWidget()
+
+        names = [curve.name for curve in self.featureTree.curves]
+
+        curveList.addItems(names)
+
+        layout.addWidget(curveLabel, 1, 0, 1, 4)
+        layout.addWidget(curveList, 2, 0, 1, 4)
+
+        print(names)
+
+
+    def loftCalled(self, layout):
+        print('loft')
+
+
+    def revolveCalled(self, layout):
+        print('revolve')
 
 
     def sketch_dialogue(self):
@@ -176,6 +375,20 @@ class MainWindow(wdg.QDialog):
         self.sketch_displayed = False
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = True
+        self.surface_dialogue_displayed = False
+
+
+    def curve_highlighted(self, selectedItems):
+        if len(selectedItems) == 0:
+            return
+        
+        for item in selectedItems:
+            for curve in self.featureTree.curves:
+                if curve.name == item.text():
+                    curve.color = 'orange'
+
+                else:
+                    curve.color = 'blue'
 
 
     def sketch_plane_highlighted(self, selectedItem):
@@ -219,6 +432,8 @@ class MainWindow(wdg.QDialog):
 
         # button callbacks
         straightLineButton.clicked.connect(lambda: self.draw_straight_line(selectedSketchPlane))
+        splineButton.clicked.connect(lambda: self.draw_spline(selectedSketchPlane))
+        bezierButton.clicked.connect(lambda: self.draw_bezier(selectedSketchPlane))
 
         # end
         self.optionLayout.addWidget(self.sketchContainer)
@@ -227,6 +442,380 @@ class MainWindow(wdg.QDialog):
         self.sketch_displayed = True
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = False
+
+
+    def draw_bezier(self, selectedSketchPlane : SketchPlane):
+        self.clear_option_layout
+        self.sketchContainer.deleteLater()
+
+        self.sketchContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.sketchContainer)
+
+        controlPointsLabel = wdg.QLabel("# Control Points: ")
+        controlPointsDropdown = wdg.QComboBox()
+        controlPointsDropdown.addItems(['3', '4', '5'])
+        acceptControlPointsButton = wdg.QPushButton("Accept")
+
+        layout.addWidget(controlPointsLabel, 0, 0)
+        layout.addWidget(controlPointsDropdown, 0, 1)
+        layout.addWidget(acceptControlPointsButton, 0, 2)
+
+        acceptControlPointsButton.clicked.connect(lambda: self.draw_bezier_control_points(selectedSketchPlane, controlPointsDropdown))
+        
+        self.optionLayout.addWidget(self.sketchContainer)
+
+
+    def draw_bezier_control_points(self, selectedSketchPlane : SketchPlane, controlPointsDropdown : wdg.QComboBox):
+        self.clear_option_layout()
+        self.sketchContainer.deleteLater()
+
+        self.sketchContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.sketchContainer)
+
+        numberOfControlPoints = int(controlPointsDropdown.currentText())
+
+        labels = []
+        xFields = []
+        yFields = []
+        zFields = []
+        for i in range(numberOfControlPoints):
+            match selectedSketchPlane.initial_orientation:
+                case 'xy':
+                    xlabel = wdg.QLabel(f"P{i}x: ")
+                    ylabel = wdg.QLabel(f"P{i}y: ")
+
+                    xField = wdg.QLineEdit()
+                    yField = wdg.QLineEdit()
+
+                    labels.append(xlabel)
+                    labels.append(ylabel)
+
+                    xFields.append(xField)
+                    yFields.append(yField)
+
+                    layout.addWidget(xlabel, i, 0)
+                    layout.addWidget(xField, i, 1)
+                    layout.addWidget(ylabel, i, 2)
+                    layout.addWidget(yField, i, 3)
+
+                case 'yz':
+                    ylabel = wdg.QLabel(f"P{i}y: ")
+                    zlabel = wdg.QLabel(f"P{i}z: ")
+
+                    yField = wdg.QLineEdit()
+                    zField = wdg.QLineEdit()
+
+                    labels.append(ylabel)
+                    labels.append(zlabel)
+
+                    yFields.append(yField)
+                    zFields.append(zField)
+
+                    layout.addWidget(ylabel, i, 0)
+                    layout.addWidget(yField, i, 1)
+                    layout.addWidget(zlabel, i, 2)
+                    layout.addWidget(zField, i, 3)
+                case 'xz':
+                    xlabel = wdg.QLabel(f"P{i}x: ")
+                    zlabel = wdg.QLabel(f"P{i}z: ")
+
+                    xField = wdg.QLineEdit()
+                    zField = wdg.QLineEdit()
+
+                    labels.append(xlabel)
+                    labels.append(zlabel)
+
+                    xFields.append(xField)
+                    zFields.append(zField)
+
+                    layout.addWidget(xlabel, i, 0)
+                    layout.addWidget(xField, i, 1)
+                    layout.addWidget(zlabel, i, 2)
+                    layout.addWidget(zField, i, 3)
+
+        cancelButton = wdg.QPushButton("Cancel")
+        previewButton = wdg.QPushButton("Preview")
+        acceptButton = wdg.QPushButton("Accept")
+
+        layout.addWidget(cancelButton, numberOfControlPoints, 0)
+        layout.addWidget(previewButton, numberOfControlPoints, 2)
+        layout.addWidget(acceptButton, numberOfControlPoints, 4)
+        
+        # control points
+        controlPoints = sp.zeros(numberOfControlPoints, 3)
+
+        sp.pretty_print(controlPoints)
+
+        # callbacks
+        cancelButton.clicked.connect(lambda: self.escape_container(self.sketchContainer))
+        previewButton.clicked.connect(lambda: self.preview_bezier(selectedSketchPlane, numberOfControlPoints, xFields, yFields, zFields))
+        acceptButton.clicked.connect(lambda: self.accept_bezier(selectedSketchPlane, numberOfControlPoints, xFields, yFields, zFields))
+
+
+        self.optionLayout.addWidget(self.sketchContainer)
+
+    
+    def preview_bezier(self, selectedSketchPlane, numberOfControlPoints, xFields, yFields, zFields):
+        # field values
+        controlPoints = sp.zeros(numberOfControlPoints, 3)
+
+        for idx, field in enumerate(xFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 0] = float(field.text())
+
+        for idx, field in enumerate(yFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 1] = float(field.text())
+
+        for idx, field in enumerate(zFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 2] = float(field.text())
+
+        sp.pretty_print(controlPoints)
+
+        self.setup_2d_plot(selectedSketchPlane.initial_orientation)
+
+        bezierCurve = BezierCurve(f"curve{self.featureTree.curveCount}", controlPoints, 40, selectedSketchPlane)
+
+        line_trace = bezierCurve.generate_trace()
+        match selectedSketchPlane.initial_orientation:
+            case 'xy':
+                self.sc.axes.plot(line_trace[:, 0], line_trace[:, 1])
+            case 'yz':
+                self.sc.axes.plot(line_trace[:, 1], line_trace[:, 2])
+            case 'xz':
+                self.sc.axes.plot(line_trace[:, 0], line_trace[:, 2])
+
+        return
+    
+
+    def accept_bezier(self, selectedSketchPlane, numberOfControlPoints, xFields, yFields, zFields):
+        # field values
+        controlPoints = sp.zeros(numberOfControlPoints, 3)
+
+        for idx, field in enumerate(xFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 0] = float(field.text())
+
+        for idx, field in enumerate(yFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 1] = float(field.text())
+
+        for idx, field in enumerate(zFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 2] = float(field.text())
+
+        sp.pretty_print(controlPoints)
+
+        self.setup_2d_plot(selectedSketchPlane.initial_orientation)
+
+        bezierCurve = BezierCurve(f"curve{self.featureTree.curveCount}", controlPoints, 40, selectedSketchPlane)
+
+        line_trace = bezierCurve.generate_trace()
+        match selectedSketchPlane.initial_orientation:
+            case 'xy':
+                self.sc.axes.plot(line_trace[:, 0], line_trace[:, 1])
+            case 'yz':
+                self.sc.axes.plot(line_trace[:, 1], line_trace[:, 2])
+            case 'xz':
+                self.sc.axes.plot(line_trace[:, 0], line_trace[:, 2])
+
+        bezierCurve.translate(selectedSketchPlane.offset)
+
+        bezierCurve.rotate(selectedSketchPlane.alpha, selectedSketchPlane.beta, selectedSketchPlane.gamma)
+
+        self.featureTree.add_curve(bezierCurve)
+
+        self.clear_mpl_container()
+
+        self.escape_container(self.sketchContainer)
+
+
+    def draw_spline(self, selectedSketchPlane : SketchPlane):
+        self.clear_option_layout
+        self.sketchContainer.deleteLater()
+
+        self.sketchContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.sketchContainer)
+
+        controlPointsLabel = wdg.QLabel("# Control Points: ")
+        controlPointsDropdown = wdg.QComboBox()
+        controlPointsDropdown.addItems(['3', '4', '5'])
+        acceptControlPointsButton = wdg.QPushButton("Accept")
+
+        layout.addWidget(controlPointsLabel, 0, 0)
+        layout.addWidget(controlPointsDropdown, 0, 1)
+        layout.addWidget(acceptControlPointsButton, 0, 2)
+
+        acceptControlPointsButton.clicked.connect(lambda: self.draw_spline_control_points(selectedSketchPlane, controlPointsDropdown))
+        
+        self.optionLayout.addWidget(self.sketchContainer)
+
+
+    def draw_spline_control_points(self, selectedSketchPlane : SketchPlane, controlPointsDropdown : wdg.QComboBox):
+        self.clear_option_layout()
+        self.sketchContainer.deleteLater()
+
+        self.sketchContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.sketchContainer)
+
+        numberOfControlPoints = int(controlPointsDropdown.currentText())
+
+        labels = []
+        xFields = []
+        yFields = []
+        zFields = []
+        for i in range(numberOfControlPoints):
+            match selectedSketchPlane.initial_orientation:
+                case 'xy':
+                    xlabel = wdg.QLabel(f"P{i}x: ")
+                    ylabel = wdg.QLabel(f"P{i}y: ")
+
+                    xField = wdg.QLineEdit()
+                    yField = wdg.QLineEdit()
+
+                    labels.append(xlabel)
+                    labels.append(ylabel)
+
+                    xFields.append(xField)
+                    yFields.append(yField)
+
+                    layout.addWidget(xlabel, i, 0)
+                    layout.addWidget(xField, i, 1)
+                    layout.addWidget(ylabel, i, 2)
+                    layout.addWidget(yField, i, 3)
+
+                case 'yz':
+                    ylabel = wdg.QLabel(f"P{i}y: ")
+                    zlabel = wdg.QLabel(f"P{i}z: ")
+
+                    yField = wdg.QLineEdit()
+                    zField = wdg.QLineEdit()
+
+                    labels.append(ylabel)
+                    labels.append(zlabel)
+
+                    yFields.append(yField)
+                    zFields.append(zField)
+
+                    layout.addWidget(ylabel, i, 0)
+                    layout.addWidget(yField, i, 1)
+                    layout.addWidget(zlabel, i, 2)
+                    layout.addWidget(zField, i, 3)
+                case 'xz':
+                    xlabel = wdg.QLabel(f"P{i}x: ")
+                    zlabel = wdg.QLabel(f"P{i}z: ")
+
+                    xField = wdg.QLineEdit()
+                    zField = wdg.QLineEdit()
+
+                    labels.append(xlabel)
+                    labels.append(zlabel)
+
+                    xFields.append(xField)
+                    zFields.append(zField)
+
+                    layout.addWidget(xlabel, i, 0)
+                    layout.addWidget(xField, i, 1)
+                    layout.addWidget(zlabel, i, 2)
+                    layout.addWidget(zField, i, 3)
+
+        cancelButton = wdg.QPushButton("Cancel")
+        previewButton = wdg.QPushButton("Preview")
+        acceptButton = wdg.QPushButton("Accept")
+
+        layout.addWidget(cancelButton, numberOfControlPoints, 0)
+        layout.addWidget(previewButton, numberOfControlPoints, 2)
+        layout.addWidget(acceptButton, numberOfControlPoints, 4)
+        
+        # control points
+        controlPoints = sp.zeros(numberOfControlPoints, 3)
+
+        sp.pretty_print(controlPoints)
+
+        # callbacks
+        cancelButton.clicked.connect(lambda: self.escape_container(self.sketchContainer))
+        previewButton.clicked.connect(lambda: self.preview_spline(selectedSketchPlane, numberOfControlPoints, xFields, yFields, zFields))
+        acceptButton.clicked.connect(lambda: self.accept_spline(selectedSketchPlane, numberOfControlPoints, xFields, yFields, zFields))
+
+
+        self.optionLayout.addWidget(self.sketchContainer)
+
+
+    def preview_spline(self, selectedSketchPlane, numberOfControlPoints, xFields, yFields, zFields):
+        # field values
+        controlPoints = sp.zeros(numberOfControlPoints, 3)
+
+        for idx, field in enumerate(xFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 0] = float(field.text())
+
+        for idx, field in enumerate(yFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 1] = float(field.text())
+
+        for idx, field in enumerate(zFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 2] = float(field.text())
+
+        sp.pretty_print(controlPoints)
+
+        self.setup_2d_plot(selectedSketchPlane.initial_orientation)
+
+        spline = Spline(f"curve{self.featureTree.curveCount}", controlPoints, 40, selectedSketchPlane)
+
+        line_trace = spline.generate_trace()
+        match selectedSketchPlane.initial_orientation:
+            case 'xy':
+                self.sc.axes.plot(line_trace[:, 0], line_trace[:, 1])
+            case 'yz':
+                self.sc.axes.plot(line_trace[:, 1], line_trace[:, 2])
+            case 'xz':
+                self.sc.axes.plot(line_trace[:, 0], line_trace[:, 2])
+
+        return
+    
+
+    def accept_spline(self, selectedSketchPlane, numberOfControlPoints, xFields, yFields, zFields):
+        # field values
+        controlPoints = sp.zeros(numberOfControlPoints, 3)
+
+        for idx, field in enumerate(xFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 0] = float(field.text())
+
+        for idx, field in enumerate(yFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 1] = float(field.text())
+
+        for idx, field in enumerate(zFields):
+            if field is not None and field.text() != '':
+                controlPoints[idx, 2] = float(field.text())
+
+        sp.pretty_print(controlPoints)
+
+        self.setup_2d_plot(selectedSketchPlane.initial_orientation)
+
+        spline = Spline(f"curve{self.featureTree.curveCount}", controlPoints, 40, selectedSketchPlane)
+
+        line_trace = spline.generate_trace()
+        match selectedSketchPlane.initial_orientation:
+            case 'xy':
+                self.sc.axes.plot(line_trace[:, 0], line_trace[:, 1])
+            case 'yz':
+                self.sc.axes.plot(line_trace[:, 1], line_trace[:, 2])
+            case 'xz':
+                self.sc.axes.plot(line_trace[:, 0], line_trace[:, 2])
+
+        spline.translate(selectedSketchPlane.offset)
+
+        spline.rotate(selectedSketchPlane.alpha, selectedSketchPlane.beta, selectedSketchPlane.gamma)
+
+        self.featureTree.add_curve(spline)
+
+        self.clear_mpl_container()
+
+        self.escape_container(self.sketchContainer)
 
 
     def draw_straight_line(self, selectedSketchPlane : SketchPlane):
@@ -353,7 +942,7 @@ class MainWindow(wdg.QDialog):
         if self.slp1zField is not None and self.slp1zField.text() != '': 
             p1[0, 2] = float(self.slp1zField.text())
 
-        line = StraightLine(f"curve{self.featureTree.curveCount}", p0, p1, 40)
+        line = StraightLine(f"curve{self.featureTree.curveCount}", p0, p1, 40, selectedSketchPlane)
 
         line.translate(selectedSketchPlane.offset)
 
@@ -391,7 +980,7 @@ class MainWindow(wdg.QDialog):
 
         self.setup_2d_plot(selectedSketchPlane.initial_orientation)
 
-        line = StraightLine(f"curve{self.featureTree.curveCount}", p0, p1, 40)
+        line = StraightLine(f"curve{self.featureTree.curveCount}", p0, p1, 40, selectedSketchPlane)
 
         line_trace = line.generate_trace()
         match selectedSketchPlane.initial_orientation:
@@ -415,7 +1004,7 @@ class MainWindow(wdg.QDialog):
         for item in items:
             sketchPlaneList.takeItem(sketchPlaneList.row(item))
 
-        self.drawFeatures()
+        self.draw_features()
 
         # ui flags
         self.sketch_displayed = True
@@ -475,6 +1064,7 @@ class MainWindow(wdg.QDialog):
         self.sketch_plane_dialogue_displayed = True
         self.sketch_dialogue_displayed = False
         self.sketch_displayed = False
+        self.surface_dialogue_displayed = False
 
 
     def escape_container(self, container):
@@ -485,13 +1075,11 @@ class MainWindow(wdg.QDialog):
 
         # wipe canvas
         self.color_all_sketchplanes_blue()
+        self.color_all_curves_blue()
 
         self.clear_mpl_container()
 
         self.setup_3d_plot()
-
-        # draw features
-        # self.drawFeatures()
 
 
     def accept_sketch_plane(self):
@@ -509,7 +1097,7 @@ class MainWindow(wdg.QDialog):
         self.featureTree.add_sketch_plane(self.tempSketchPlane)
         self.tempSketchPlane = None
 
-        self.drawFeatures()
+        self.draw_features()
 
 
     def preview_sketch_plane_initial(self):
@@ -714,7 +1302,7 @@ class MainWindow(wdg.QDialog):
         return
     
 
-    def drawFeatures(self):
+    def draw_features(self):
         self.sc.axes.cla()
 
         print(self.featureTree.sketchPlanes)
@@ -730,7 +1318,14 @@ class MainWindow(wdg.QDialog):
         for curve in self.featureTree.curves:
             curveTrace = curve.generate_trace()
 
-            self.sc.axes.plot(curveTrace[:, 0], curveTrace[:, 1], curveTrace[:, 2])
+            self.sc.axes.plot(curveTrace[:, 0], curveTrace[:, 1], curveTrace[:, 2], color=curve.color)
+
+        for surface in self.featureTree.surfaces:
+            surfaceTraces = surface.generate_traces()
+
+            for trace in surfaceTraces:
+                self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=surface.color)
+
 
         self.set_labels_3d()
         self.set_limits_3d()
@@ -740,6 +1335,11 @@ class MainWindow(wdg.QDialog):
     def color_all_sketchplanes_blue(self):
         for sketchPlane in self.featureTree.sketchPlanes:
             sketchPlane.color = 'blue'
+
+
+    def color_all_curves_blue(self):
+        for curve in self.featureTree.curves:
+            curve.color = 'blue'
 
 
 if __name__ == "__main__":
