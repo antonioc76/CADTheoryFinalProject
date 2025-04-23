@@ -41,6 +41,8 @@ class SketchPlane:
                                             normal_vector_endpoint])
         
         self.normal_vector = U * self.Nsl * self.Gsl_normal_vector
+
+        sp.pretty_print(self.normal_vector)
         
         self.Gsl1 = sp.Matrix([p0, p1])
 

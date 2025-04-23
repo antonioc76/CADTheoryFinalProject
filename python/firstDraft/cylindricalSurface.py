@@ -12,11 +12,17 @@ from CADUtils import Offset
 
 class CylindricalSurface:
     def __init__(self, name, curve, density=40, color='green'):
+        print('init surface')
+
         self.name = name
 
         self.curve = curve
 
         self.color = color
+
+        self.offset = self.curve.offset
+
+        self.normal_vector = curve.normal_vector
 
         self.u_eval = np.linspace(0, 1, density)
 
@@ -26,13 +32,17 @@ class CylindricalSurface:
 
         self.w = sp.symbols('w')
 
-        self.P_u = self.curve.P_u
+        self.P_u = self.curve.P_u - sp.Matrix([[self.offset.x, self.offset.y, self.offset.z]])
 
         self.Q_w = self.curve.normal_vector.subs(self.u, self.w)
 
-        self.S_u_w = self.P_u + self.Q_w
 
+        print('p_u')
+        sp.pretty_print(self.P_u)
+        print('q_w')
         sp.pretty_print(self.Q_w)
+
+        self.S_u_w = self.P_u + self.Q_w
 
         sp.pretty_print(self.S_u_w)
 
@@ -42,7 +52,18 @@ class CylindricalSurface:
 
 
     def scale_q(self, scaler):
-        print("scaling")
+        print("scale_q")
+        print(f"offset: {self.curve.offset.x}, {self.curve.offset.y}, {self.curve.offset.z}")
+
+        sp.pretty_print(self.S_u_w)
+
+        self.rotate_q(-1 * self.curve.alpha, -1 * self.curve.beta, -1 * self.curve.gamma)
+
+        self.translate_q(Offset(-1 * self.curve.offset.x, -1 * self.curve.offset.y, -1 * self.curve.offset.z))
+
+        sp.pretty_print(self.S_u_w)
+
+        # print("scaling")
         # translation matrices
 
         self.scale = sp.Matrix([[scaler, 0, 0, 0],
@@ -60,7 +81,13 @@ class CylindricalSurface:
 
         # surface
 
+        self.rotate_q(self.curve.alpha, self.curve.beta, self.curve.gamma)
+
+        self.translate_q(Offset(self.curve.offset.x, self.curve.offset.y, self.curve.offset.z))
+
         self.S_u_w = self.P_u + self.Q_w
+
+        # sp.pretty_print(self.S_u_w)
 
 
     def translate(self, offset=Offset(0, 0, 0)):
@@ -95,6 +122,58 @@ class CylindricalSurface:
         self.normal_vector = normal_vector_h_transformed[:-1, :].T
 
         self.offset.add(offset)
+
+
+    def translate_q(self, offset=Offset(0, 0, 0)):
+        # translation matrices
+
+        self.Tx = sp.Matrix([[1, 0, 0, offset.x],
+                        [0, 1, 0, 0],
+                        [0, 0, 1, 0],
+                        [0, 0, 0, 1]])
+        
+        self.Ty = sp.Matrix([[1, 0, 0, 0],
+                        [0, 1, 0, offset.y],
+                        [0, 0, 1, 0],
+                        [0, 0, 0, 1]])
+        
+        self.Tz = sp.Matrix([[1, 0, 0, 0],
+                        [0, 1, 0, 0],
+                        [0, 0, 1, offset.z],
+                        [0, 0, 0, 1]])
+        
+        Q_w_h = self.Q_w.T.row_insert(self.Q_w.T.rows, sp.Matrix([1]))
+
+        Q_w_h_transformed = self.Tx * self.Ty * self.Tz * Q_w_h
+
+        self.Q_w = Q_w_h_transformed[:-1, :].T
+
+        self.S_u_w = self.P_u + self.Q_w
+
+    
+    def rotate_q(self, alpha, beta, gamma):
+        self.Trx = sp.Matrix([[1, 0, 0, 0],
+                        [0, np.cos(np.radians(alpha)), -np.sin(np.radians(alpha)), 0],
+                        [0, np.sin(np.radians(alpha)), np.cos(np.radians(alpha)), 0],
+                        [0, 0, 0, 1]])
+        
+        self.Try = sp.Matrix([[np.cos(np.radians(beta)), 0, -np.sin(np.radians(beta)), 0],
+                              [0, 1, 0, 0],
+                              [np.sin(np.radians(beta)), 0, np.cos(np.radians(beta)), 0],
+                              [0, 0, 0, 1]])
+
+        self.Trz = sp.Matrix([[np.cos(np.radians(gamma)), -np.sin(np.radians(gamma)), 0, 0],
+                         [np.sin(np.radians(gamma)), np.cos(np.radians(gamma)), 0, 0],
+                         [0, 0, 1, 0],
+                         [0, 0, 0, 1]])
+        
+        Q_w_h = self.Q_w.T.row_insert(self.Q_w.T.rows, sp.Matrix([1]))
+
+        Q_w_h_transformed = self.Trx * self.Try * self.Trz * Q_w_h
+
+        self.Q_w = Q_w_h_transformed[:-1, :].T
+
+        self.S_u_w = self.P_u + self.Q_w
 
 
     def rotate(self, alpha, beta, gamma):
@@ -167,25 +246,35 @@ if __name__ == "__main__":
 
     p1 = sp.Matrix([[10, 0, 0]])
 
-    p0 = sp.Matrix([[-100, -100, 0]])
-    p1 = sp.Matrix([[-100, 100, 0]])
+    # p0 = sp.Matrix([[-100, -100, 0]])
+    # p1 = sp.Matrix([[-100, 100, 0]])
 
-    q0 = sp.Matrix([[100, -100, 0]])
-    q1 = sp.Matrix([[100, 100, 0]])
+    # q0 = sp.Matrix([[100, -100, 0]])
+    # q1 = sp.Matrix([[100, 100, 0]])
 
-    myPlane = SketchPlane('plane', 'xy', 40, p0, p1, q0, q1)
+    p0 = sp.Matrix([[-100, 0, -100]])
+    p1 = sp.Matrix([[-100, 0, 100]])
 
-    # myPlane.rotate(0, 30, 0)
+    q0 = sp.Matrix([[100, 0, -100]])
+    q1 = sp.Matrix([[100, 0, 100]])
 
-    myPlane.translate(Offset(0, 0, 1))
+    myPlane = SketchPlane('plane', 'xz', 40, p0, p1, q0, q1)
 
-    cps = sp.Matrix([[-20, -30, 0], [0, 30, 0], [20, 0, 0], [50, 30, 0], [60, -20, 0]])
+    myPlane.translate(Offset(0, 10, 0))
+    
+    myPlane.rotate(30, 0, 0)
+
+    cps = sp.Matrix([[-20, 0, -30], [0, 0, 30], [20, 0, 0], [50, 0, 30], [60, 0, -20]])
 
     myCurve = BezierCurve("bezier", cps, 40, myPlane)
 
-    myCurve.translate(Offset(0, 0, 1))
+    print(f"my curve")
+    sp.pretty_print(myCurve.P_u)
+    sp.pretty_print(myCurve.normal_vector)
 
     mySurface = CylindricalSurface('surface', myCurve)
+
+    print(mySurface.curve.normal_vector)
 
     mySurface.scale_q(100)
 

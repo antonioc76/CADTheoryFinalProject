@@ -6,18 +6,20 @@ from CADUtils import Offset
 from sketchPlane import SketchPlane
 
 class StraightLine:
-    def __init__(self, name, p0, p1, density, sketchPlane : SketchPlane, alpha=0, beta=0, gamma=0, offset=Offset(0, 0, 0), color='blue'):
+    def __init__(self, name, p0, p1, density, sketchPlane : SketchPlane, color='blue'):
         self.name = name
 
         self.color = color
 
-        self.alpha = alpha
+        self.sketch_plane = sketchPlane
 
-        self.beta = beta
+        self.alpha = sketchPlane.alpha
+
+        self.beta = sketchPlane.beta
         
-        self.gamma = gamma
+        self.gamma = sketchPlane.gamma
 
-        self.offset = offset
+        self.offset = sketchPlane.offset
 
         self.density = density
 
@@ -32,6 +34,10 @@ class StraightLine:
         self.Gsl = sp.Matrix([p0, p1])
 
         self.P_u = self.U * self.Nsl * self.Gsl
+
+        self.translate(self.offset)
+
+        self.rotate(self.alpha, self.beta, self.gamma)
 
 
     def generate_trace(self):
@@ -51,7 +57,7 @@ class StraightLine:
         print("translating line")
         print(f"offset: {offset.x}, {offset.y}, {offset.z}")
 
-        offset.subtract(self.offset)
+        # offset.subtract(self.offset)
         # translation matrices
 
         self.Tx = sp.Matrix([[1, 0, 0, offset.x],
@@ -75,26 +81,18 @@ class StraightLine:
 
         self.P_u = P_u_h_transformed[:-1, :].T
 
-        self.offset.add(offset)
+        # self.offset.add(offset)
 
         # normal vector
 
-        normal_vector_h = self.normal_vector.T.row_insert(self.normal_vector.T.rows, sp.Matrix([1]))
+        # normal_vector_h = self.normal_vector.T.row_insert(self.normal_vector.T.rows, sp.Matrix([1]))
 
-        normal_vector_h_transformed = self.Tx * self.Ty * self.Tz * normal_vector_h
+        # normal_vector_h_transformed = self.Tx * self.Ty * self.Tz * normal_vector_h
 
-        self.normal_vector = normal_vector_h_transformed[:-1, :].T
+        # self.normal_vector = normal_vector_h_transformed[:-1, :].T
 
 
     def rotate(self, alpha, beta, gamma):
-        alpha = alpha - self.alpha
-        beta = beta - self.beta
-        gamma = gamma - self.gamma
-
-        self.alpha += alpha
-        self.beta += beta
-        self.gamma += gamma
-
         # rotation matrices
         self.Trx = sp.Matrix([[1, 0, 0, 0],
                         [0, np.cos(np.radians(alpha)), -np.sin(np.radians(alpha)), 0],
@@ -119,11 +117,11 @@ class StraightLine:
 
         # normal vector
 
-        normal_vector_h = self.normal_vector.T.row_insert(self.normal_vector.T.rows, sp.Matrix([1]))
+        # normal_vector_h = self.normal_vector.T.row_insert(self.normal_vector.T.rows, sp.Matrix([1]))
 
-        normal_vector_h_transformed = self.Trz * self.Try * self.Trx * normal_vector_h
+        # normal_vector_h_transformed = self.Trz * self.Try * self.Trx * normal_vector_h
 
-        self.normal_vector = normal_vector_h_transformed[:-1, :].T
+        # self.normal_vector = normal_vector_h_transformed[:-1, :].T
 
 
 if __name__ == "__main__":
