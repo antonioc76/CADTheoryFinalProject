@@ -16,3 +16,7 @@ class Offset:
         self.x -= other.x
         self.y -= other.y
         self.z -= other.z
+
+
+    def print(self):
+        print(f"offset: x: {self.x}, y: {self.y}, z: {self.z}")
