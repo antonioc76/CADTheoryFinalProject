@@ -26,6 +26,10 @@ class BezierCurve:
 
         self.offset = sketchPlane.offset
 
+        print(f"offset in bezier curve {self.name}")
+
+        self.offset.print()
+
         self.u = sp.symbols('u')
 
         num = controlPoints.rows

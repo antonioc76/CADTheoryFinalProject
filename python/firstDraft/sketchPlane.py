@@ -111,7 +111,7 @@ class SketchPlane:
     
 
     def translate(self, offset=Offset(0, 0, 0)):
-        offset.subtract(self.offset)
+        offset = offset.subtract(self.offset)
         # translation matrices
 
         self.Tx = sp.Matrix([[1, 0, 0, offset.x],
@@ -141,7 +141,7 @@ class SketchPlane:
 
         self.normal_vector = normal_vector_h_transformed[:-1, :].T
 
-        self.offset.add(offset)
+        self.offset = self.offset.add(offset)
 
 
     def rotate(self, alpha, beta, gamma):
@@ -194,15 +194,30 @@ if __name__ == "__main__":
     q0 = sp.Matrix([[100, 0, 0]])
     q1 = sp.Matrix([[100, 100, 0]])
 
-    myPlane = SketchPlane("myPlane", "xy", 40, p0, p1, q0, q1, 0, 0, 0, Offset(0, 0, 20), color='red')
+    myPlane = SketchPlane("myPlane", "xy", 40, p0, p1, q0, q1, 0, 0, 0, offset=Offset(0, 0, 0), color='red')
 
-    myPlane.translate(Offset(0, 10, 0))
+    myPlane2 = SketchPlane("myPlane", "xy", 40, p0, p1, q0, q1, 0, 0, 0, offset=Offset(0, 0, 0), color='red')
+
+    myPlane.translate(offset=Offset(0, 10, 0))
+
+    myPlane.translate(offset=Offset(0, 0, 10))
+
+    myPlane2.translate(offset=Offset(0, 0, 50))
+
+    myPlane.offset.print()
+    
+    myPlane2.offset.print()
 
     myPlane.rotate(-30, 0, 0)
 
     lines = myPlane.generate_traces()
 
+    lines2 = myPlane2.generate_traces()
+
     for line in lines:
+        axes.plot(line[:, 0], line[:, 1], line[:, 2], color=myPlane.color)
+
+    for line in lines2:
         axes.plot(line[:, 0], line[:, 1], line[:, 2], color=myPlane.color)
 
     normal_vector_trace = myPlane.generate_normal_vector_trace(10)

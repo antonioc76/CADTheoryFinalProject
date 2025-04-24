@@ -137,22 +137,30 @@ if __name__ == "__main__":
 
     myPlane = SketchPlane('plane', 'xy', 40, p0, p1, q0, q1)
 
-    myLine = StraightLine('my line', myPlane, p0, p1, 40)
+    myPlane2 = SketchPlane('plane2', 'xy', 40, p0, p1, q0, q1)
 
-    myLine.rotate(0, 0, 0)
+    myPlane2.translate(offset=Offset(0, 0, 25))
 
-    myLine.translate(Offset(4, 0, 0))
+    myLine = StraightLine('my line', p0, p1, 40, myPlane)
+
+    myLine2 = StraightLine('my line 2', p0, p1, 40, myPlane2)
 
     myLine_eval = myLine.generate_trace()
 
+    myLine2_eval = myLine2.generate_trace()
+
     figure = plt.figure()
 
-    axes = figure.add_subplot()
+    axes = figure.add_subplot(projection='3d')
 
-    axes.plot(myLine_eval[:, 0], myLine_eval[:, 1])
+    axes.plot(myLine_eval[:, 0], myLine_eval[:, 1], myLine_eval[:, 2])
 
-    axes.set_xlim((-10, 10))
+    axes.plot(myLine2_eval[:, 0], myLine2_eval[:, 1], myLine2_eval[:, 2])
 
-    axes.set_ylim((-10, 10))
+    axes.set_xlim((-100, 100))
+
+    axes.set_ylim((-100, 100))
+
+    axes.set_zlim((-100, 100))
 
     plt.show()

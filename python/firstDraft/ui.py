@@ -23,6 +23,7 @@ from bezierCurve import BezierCurve
 from closedUniformBSpline import ClosedUniformBSpline
 
 from cylindricalSurface import CylindricalSurface
+from ruledSurface import RuledSurface
 
 
 class FeatureTree:
@@ -151,6 +152,8 @@ class MainWindow(wdg.QDialog):
 
 
     def surface_dialogue(self):
+        self.surface_type = None
+
         if self.surface_dialogue_displayed == True: 
             return
         
@@ -180,13 +183,17 @@ class MainWindow(wdg.QDialog):
         layout.addWidget(loftButton, 0, 2, Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(revolveButton, 0, 3, Qt.AlignmentFlag.AlignCenter)
 
-        curveLabel = wdg.QLabel("Select Curve")
-        curveList = wdg.QListWidget()
+        curveLabel1 = wdg.QLabel("Select Curve")
+        curveList1 = wdg.QListWidget()
 
-        curveList.setSelectionMode(wdg.QAbstractItemView.SelectionMode.ExtendedSelection)
+        curveLabel2 = wdg.QLabel("Select Curve")
+        curveList2 = wdg.QListWidget()
 
-        cylindricalButton.clicked.connect(lambda: self.cylindricalCalled(layout, depthLabel, depthField, curveLabel, curveList))
-        ruledButton.clicked.connect(lambda: self.ruledCalled(layout))
+        curveList1.setSelectionMode(wdg.QAbstractItemView.SelectionMode.ExtendedSelection)
+        curveList2.setSelectionMode(wdg.QAbstractItemView.SelectionMode.ExtendedSelection)
+
+        cylindricalButton.clicked.connect(lambda: self.cylindricalCalled(layout, depthLabel, depthField, curveLabel1, curveList1))
+        ruledButton.clicked.connect(lambda: self.ruledCalled(layout, curveLabel1, curveList1, curveLabel2, curveList2))
         loftButton.clicked.connect(lambda: self.loftCalled(layout))
         revolveButton.clicked.connect(lambda: self.revolveCalled(layout))
 
@@ -200,8 +207,8 @@ class MainWindow(wdg.QDialog):
 
         # callbacks
         surfaceEscapeButton.clicked.connect(lambda: self.escape_container(self.surfaceContainer))
-        surfacePlotButton.clicked.connect(lambda: self.preview_surface(curveList, depthField.text()))
-        surfaceAcceptButton.clicked.connect(lambda: self.accept_surface(curveList, depthField.text()))
+        surfacePlotButton.clicked.connect(lambda: self.preview_surface(curveList1, curveList2, depthField.text(), self.surface_type))
+        surfaceAcceptButton.clicked.connect(lambda: self.accept_surface(curveList1, curveList2, depthField.text(), self.surface_type))
         
         self.clear_option_layout()
 
@@ -214,86 +221,199 @@ class MainWindow(wdg.QDialog):
         self.sketch_displayed = False
 
     
-    def preview_surface(self, curveList, extrusion_depth):
-        print('hi')
-        if len(curveList.selectedItems()) == 0:
-            print('no curves')
-            return
-        
-        print(curveList.selectedItems()[0].text())
+    def preview_surface(self, curveList1, curveList2, extrusion_depth, surface_type):
+        print(curveList1.selectedItems())
+        print(curveList2.selectedItems())
+
+        match surface_type:
+            case 'cylindrical':
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                print(curveList1.selectedItems()[0].text())
+            
+                selectedCurves = []
+
+                for curve in self.featureTree.curves:
+                    for item in curveList1.selectedItems():
+                        if curve.name == item.text():
+                            selectedCurves.append(curve)
+
+                if selectedCurves is None:
+                    print('no selected curve')
+                    return
+                
+                if extrusion_depth is None or extrusion_depth == '':
+                    print('no extrusion depth')
+                    return
+
+                surfaces = []
+                for curve in selectedCurves:
+                    surface = CylindricalSurface(f"Surface{self.featureTree.surfaceCount}", curve, 10)
+                    surface.scale_q(float(extrusion_depth))
+
+                    surfaces.append(surface)
+
+                print("inside preview surface")
+
+                print(float(extrusion_depth))
+
+                self.setup_3d_plot()
+
+                surface_traces_list = []
+                for surface in surfaces:
+                    surface_traces = surface.generate_traces()
+                    surface_traces_list.append(surface_traces)
+
+                for surface_traces in surface_traces_list:
+                    for trace in surface_traces:
+                        self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=surface.color, alpha=0.4)
+
+                self.sc.figure.canvas.draw()
+            case 'ruled':
+                selectedCurves1 = []
+                selectedCurves2 = []
+                if len(curveList1.selectedItems()) == 0:
+                    print('no first curves')
+                    return
+                
+                else:
+                    print(curveList1.selectedItems()[0].text())
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no second curves')
+                    return
+                
+                else:
+                    print(curveList2.selectedItems()[0].text)
+                
+                for curve in self.featureTree.curves:
+                    for item in curveList1.selectedItems():
+                        if curve.name == item.text():
+                            selectedCurves1.append(curve)
+
+                    for item in curveList2.selectedItems():
+                        if curve.name == item.text():
+                            selectedCurves2.append(curve)
+
+                if selectedCurves1 is None:
+                    print('no selected first curve')
+                    return
+                
+                if selectedCurves2 is None:
+                    print('no selected second curve')
+                    return
+
+                if selectedCurves1 == selectedCurves2:
+                    print('cannot select the same curve')
+                    return
+                
+                if len(selectedCurves1) != len(selectedCurves2):
+                    print("Same amount of curves not selected")
+                    return
+                
+                surface_traces_list = []
+
+                for i in range(len(selectedCurves1)):
+                    mySurface = RuledSurface(f"Surface{self.featureTree.surfaceCount}", selectedCurves1[i], selectedCurves2[i], 10)
+                    surface_traces = mySurface.generate_traces()
+                    surface_traces_list.append(surface_traces)
+
+                self.setup_3d_plot()
+
+                for surf_traces in surface_traces_list:
+                    for trace in surf_traces:
+                        self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=mySurface.color)
+
+                self.sc.figure.canvas.draw()
+
+
+    def accept_surface(self, curveList1, curveList2, extrusion_depth, surface_type):
+        match surface_type:
+            case 'cylindrical':
+                if len(curveList1.selectedItems()) == 0:
+                    return
+                
+                print(curveList1.selectedItems()[0].text())
+            
+                selectedCurves = []
+
+                for curve in self.featureTree.curves:
+                    for item in curveList1.selectedItems():
+                        if curve.name == item.text():
+                            selectedCurves.append(curve)
+
+                if selectedCurves is None:
+                    return
+                
+                if extrusion_depth is None or extrusion_depth == '':
+                    return
+
+                for curve in selectedCurves:
+                    surface = CylindricalSurface(f"Surface{self.featureTree.surfaceCount}", curve, 10)
+                    surface.scale_q(float(extrusion_depth))
+                    self.featureTree.add_surface(surface)
+
+                print(float(extrusion_depth))
+
+                self.clear_mpl_container()
+
+                self.escape_container(self.surfaceContainer)
+            case 'ruled':
+                selectedCurves1 = []
+                selectedCurves2 = []
+                if len(curveList1.selectedItems()) == 0:
+                    print('no first curves')
+                    return
+                
+                else:
+                    print(curveList1.selectedItems()[0].text())
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no second curves')
+                    return
+                
+                else:
+                    print(curveList2.selectedItems()[0].text)
+                
+                for curve in self.featureTree.curves:
+                    for item in curveList1.selectedItems():
+                        if curve.name == item.text():
+                            selectedCurves1.append(curve)
+
+                    for item in curveList2.selectedItems():
+                        if curve.name == item.text():
+                            selectedCurves2.append(curve)
+
+                if selectedCurves1 is None:
+                    print('no selected first curve')
+                    return
+                
+                if selectedCurves2 is None:
+                    print('no selected second curve')
+                    return
+
+                if selectedCurves1 == selectedCurves2:
+                    print('cannot select the same curve')
+                    return
+                
+                if len(selectedCurves1) != len(selectedCurves2):
+                    print("Same amount of curves not selected")
+                    return
+
+                for i in range(len(selectedCurves1)):
+                    mySurface = RuledSurface(f"Surface{self.featureTree.surfaceCount}", selectedCurves1[i], selectedCurves2[i], 10)
+                    self.featureTree.add_surface(mySurface)
+
+                self.clear_mpl_container()
+
+                self.escape_container(self.surfaceContainer)
+
     
-        selectedCurves = []
+    def cylindricalCalled(self, layout, depthLabel, depthField, curveLabel: wdg.QLabel, curveList):
+        curveLabel.setText("Select Curves")
 
-        for curve in self.featureTree.curves:
-            for item in curveList.selectedItems():
-                if curve.name == item.text():
-                    selectedCurves.append(curve)
-
-        if selectedCurves is None:
-            print('no selected curve')
-            return
-        
-        if extrusion_depth is None or extrusion_depth == '':
-            print('no extrusion depth')
-            return
-
-        surfaces = []
-        for curve in selectedCurves:
-            surface = CylindricalSurface(f"Surface{self.featureTree.surfaceCount}", curve, 10)
-            surface.scale_q(float(extrusion_depth))
-
-            surfaces.append(surface)
-
-        print("inside preview surface")
-
-        print(float(extrusion_depth))
-
-        self.setup_3d_plot()
-
-        surface_traces_list = []
-        for surface in surfaces:
-            surface_traces = surface.generate_traces()
-            surface_traces_list.append(surface_traces)
-
-        for surface_traces in surface_traces_list:
-            for trace in surface_traces:
-                self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=surface.color, alpha=0.4)
-
-        self.sc.figure.canvas.draw()
-
-
-    def accept_surface(self, curveList, extrusion_depth):
-        if len(curveList.selectedItems()) == 0:
-            return
-        
-        print(curveList.selectedItems()[0].text())
-    
-        selectedCurves = []
-
-        for curve in self.featureTree.curves:
-            for item in curveList.selectedItems():
-                if curve.name == item.text():
-                    selectedCurves.append(curve)
-
-        if selectedCurves is None:
-            return
-        
-        if extrusion_depth is None or extrusion_depth == '':
-            return
-
-        for curve in selectedCurves:
-            surface = CylindricalSurface(f"Surface{self.featureTree.surfaceCount}", curve, 10)
-            surface.scale_q(float(extrusion_depth))
-            self.featureTree.add_surface(surface)
-
-        print(float(extrusion_depth))
-
-        self.clear_mpl_container()
-
-        self.escape_container(self.surfaceContainer)
-
-    
-    def cylindricalCalled(self, layout, depthLabel, depthField, curveLabel, curveList):
         layout.addWidget(depthLabel, 8, 1)
         layout.addWidget(depthField, 8, 2)
 
@@ -311,7 +431,7 @@ class MainWindow(wdg.QDialog):
         # callbacks
         curveList.itemPressed.connect(lambda: self.cylindrical_curves_highlighted(curveList.selectedItems()))
 
-        print(names)
+        self.surface_type = 'cylindrical'
 
     
     def cylindrical_curves_highlighted(self, selectedItems):
@@ -335,18 +455,57 @@ class MainWindow(wdg.QDialog):
         self.setup_3d_plot()
 
 
-    def ruledCalled(self, layout):
-        curveLabel = wdg.QLabel("Select Curve")
-        curveList = wdg.QListWidget()
+    def ruledCalled(self, layout, curveLabel1: wdg.QLabel, curveList1, curveLabel2: wdg.QLabel, curveList2):
+        curveLabel1.setText("Select First Curve")
+
+        curveLabel2.setText("Select Second Curve")
 
         names = [curve.name for curve in self.featureTree.curves]
 
-        curveList.addItems(names)
+        curveList1.addItems(names)
+        curveList2.addItems(names)
 
-        layout.addWidget(curveLabel, 1, 0, 1, 4)
-        layout.addWidget(curveList, 2, 0, 1, 4)
+        layout.addWidget(curveLabel1, 1, 0, 1, 4)
+        layout.addWidget(curveList1, 2, 0, 1, 4)
 
-        print(names)
+        layout.addWidget(curveLabel2, 3, 0, 1, 4)
+        layout.addWidget(curveList2, 4, 0, 1, 4)
+
+        curveList1.itemPressed.connect(lambda: self.ruled_curves_highlighted(curveList1.selectedItems(), curveList2.selectedItems()))
+        curveList2.itemPressed.connect(lambda: self.ruled_curves_highlighted(curveList1.selectedItems(), curveList2.selectedItems()))
+
+        self.surface_type = 'ruled'
+
+
+    def ruled_curves_highlighted(self, selectedItems1, selectedItems2):
+        if len(selectedItems1) == 0 and len(selectedItems2):
+            return
+        
+        orangeCurves = []
+        for curve in self.featureTree.curves:
+            for item in selectedItems1:
+                if curve.name == item.text():
+                    orangeCurves.append(curve)
+
+        greenCurves = []
+        for curve in self.featureTree.curves:
+            for item in selectedItems2:
+                if curve.name == item.text():
+                    greenCurves.append(curve)
+
+        blueCurves = list(set(self.featureTree.curves) - set(orangeCurves) - set(greenCurves))
+            
+        for curve in orangeCurves:
+            curve.color = 'orange'
+
+        for curve in greenCurves:
+            curve.color = 'green'
+
+        for curve in blueCurves:
+            curve.color = 'blue'
+
+        self.setup_3d_plot()
+    
 
 
     def loftCalled(self, layout):
@@ -433,6 +592,8 @@ class MainWindow(wdg.QDialog):
             return
         
         selectedSketchPlane = [sketchPlane for sketchPlane in self.featureTree.sketchPlanes if sketchPlane.name == selectedItem[0].text()][0]
+
+        print(selectedSketchPlane.name)
 
         selectedSketchPlane : SketchPlane
 
@@ -1525,6 +1686,7 @@ class MainWindow(wdg.QDialog):
     
 
     def draw_features(self):
+        print('draw features')
         self.sc.axes.cla()
 
         print(self.featureTree.sketchPlanes)
@@ -1533,6 +1695,8 @@ class MainWindow(wdg.QDialog):
             sketchPlaneTraces = sketchPlane.generate_traces()
 
             sp.pretty_print(sketchPlane.S_u_w)
+
+            sketchPlane.offset.print()
 
             for trace in sketchPlaneTraces:
                 self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=sketchPlane.color, alpha=0.3)
