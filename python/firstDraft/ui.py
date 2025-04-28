@@ -24,6 +24,7 @@ from closedUniformBSpline import ClosedUniformBSpline
 
 from cylindricalSurface import CylindricalSurface
 from ruledSurface import RuledSurface
+from loftedSurface import LoftedSurface
 
 
 class FeatureTree:
@@ -108,7 +109,7 @@ class MainWindow(wdg.QDialog):
         self.sketchPlaneButton: wdg.QPushButton
         self.sketchButton: wdg.QPushButton
         self.surfaceButton: wdg.QPushButton
-        self.transformationButton: wdg.QPushButton
+        self.surfaceIntersectionButton: wdg.QPushButton
 
         # setup callback functions
         self.sketchPlaneButton.clicked.connect(self.sketch_plane_dialogue)
@@ -189,12 +190,21 @@ class MainWindow(wdg.QDialog):
         curveLabel2 = wdg.QLabel("Select Curve")
         curveList2 = wdg.QListWidget()
 
+        curveLabel3 = wdg.QLabel("Select Curve")
+        curveList3 = wdg.QListWidget()
+
+        curveLabel4 = wdg.QLabel("Select Curve")
+        curveList4 = wdg.QListWidget()
+
+        curveLabel5 = wdg.QLabel("Select Curve")
+        curveList5 = wdg.QListWidget()
+
         curveList1.setSelectionMode(wdg.QAbstractItemView.SelectionMode.ExtendedSelection)
         curveList2.setSelectionMode(wdg.QAbstractItemView.SelectionMode.ExtendedSelection)
 
         cylindricalButton.clicked.connect(lambda: self.cylindricalCalled(layout, depthLabel, depthField, curveLabel1, curveList1))
         ruledButton.clicked.connect(lambda: self.ruledCalled(layout, curveLabel1, curveList1, curveLabel2, curveList2))
-        loftButton.clicked.connect(lambda: self.loftCalled(layout))
+        loftButton.clicked.connect(lambda: self.loftCalled(curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5))
         revolveButton.clicked.connect(lambda: self.revolveCalled(layout))
 
         surfaceEscapeButton = wdg.QPushButton("Cancel")
@@ -220,7 +230,393 @@ class MainWindow(wdg.QDialog):
         self.sketch_dialogue_displayed = False
         self.sketch_displayed = False
 
+
+    def loftCalled(self, curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5):
+        self.clear_option_layout()
+        
+        self.surfaceContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.surfaceContainer)
+
+        numberOfCurvesLabel = wdg.QLabel("Select number of curves:")
+        numberOfCurvesDropdown = wdg.QComboBox()
+        numberOfCurvesDropdown.addItems(['2', '3', '4', '5'])
+        acceptNumberOfCurvesButton = wdg.QPushButton("Accept")
+
+        layout.addWidget(numberOfCurvesLabel, 1, 0, 1, 1)
+        layout.addWidget(numberOfCurvesDropdown, 1, 1, 1, 1)
+        layout.addWidget(acceptNumberOfCurvesButton, 1, 2, 1, 1)
+
+        self.color_all_curves_blue()
+
+        self.setup_3d_plot()
+
+        acceptNumberOfCurvesButton.clicked.connect(lambda: self.loftCurveNumberAccepted(numberOfCurvesDropdown, curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5))
+
+        self.optionLayout.addWidget(self.surfaceContainer)
+
     
+    def loftCurveNumberAccepted(self, numberOfCurvesDropdown, curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5):        
+        numberOfCurves = int(numberOfCurvesDropdown.currentText())
+
+        self.clear_option_layout()
+        self.surfaceContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.surfaceContainer)
+
+        match numberOfCurves:
+            case 2:
+                curveList1.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList2.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                layout.addWidget(curveLabel1, 0, 0, 1, 3)
+                layout.addWidget(curveList1, 1, 0, 1, 3)
+                layout.addWidget(curveLabel2, 2, 0, 1, 3)
+                layout.addWidget(curveList2, 3, 0, 1, 3)
+                
+                names = [curve.name for curve in self.featureTree.curves]
+
+                curveList1.addItems(names)
+                curveList2.addItems(names)
+
+            case 3:
+                curveList1.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList2.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList3.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                layout.addWidget(curveLabel1, 0, 0, 1, 3)
+                layout.addWidget(curveList1, 1, 0, 1, 3)
+                layout.addWidget(curveLabel2, 2, 0, 1, 3)
+                layout.addWidget(curveList2, 3, 0, 1, 3)
+                layout.addWidget(curveLabel3, 4, 0, 1, 3)
+                layout.addWidget(curveList3, 5, 0, 1, 3)
+
+                names = [curve.name for curve in self.featureTree.curves]
+
+                curveList1.addItems(names)
+                curveList2.addItems(names)
+                curveList3.addItems(names)
+
+            case 4:
+                curveList1.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList2.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList3.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList4.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                layout.addWidget(curveLabel1, 0, 0, 1, 3)
+                layout.addWidget(curveList1, 1, 0, 1, 3)
+                layout.addWidget(curveLabel2, 2, 0, 1, 3)
+                layout.addWidget(curveList2, 3, 0, 1, 3)
+                layout.addWidget(curveLabel3, 4, 0, 1, 3)
+                layout.addWidget(curveList3, 5, 0, 1, 3)
+                layout.addWidget(curveLabel4, 6, 0, 1, 3)
+                layout.addWidget(curveList4, 7, 0, 1, 3)
+
+                names = [curve.name for curve in self.featureTree.curves]
+
+                curveList1.addItems(names)
+                curveList2.addItems(names)
+                curveList3.addItems(names)
+                curveList4.addItems(names)
+
+            case 5:
+                curveList1.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList2.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList3.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList4.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                curveList5.setSelectionMode(wdg.QAbstractItemView.SelectionMode.SingleSelection)
+                layout.addWidget(curveLabel1, 0, 0, 1, 3)
+                layout.addWidget(curveList1, 1, 0, 1, 3)
+                layout.addWidget(curveLabel2, 2, 0, 1, 3)
+                layout.addWidget(curveList2, 3, 0, 1, 3)
+                layout.addWidget(curveLabel3, 4, 0, 1, 3)
+                layout.addWidget(curveList3, 5, 0, 1, 3)
+                layout.addWidget(curveLabel4, 6, 0, 1, 3)
+                layout.addWidget(curveList4, 7, 0, 1, 3)
+                layout.addWidget(curveLabel5, 8, 0, 1, 3)
+                layout.addWidget(curveList5, 9, 0, 1, 3)
+
+                names = [curve.name for curve in self.featureTree.curves]
+
+                curveList1.addItems(names)
+                curveList2.addItems(names)
+                curveList3.addItems(names)
+                curveList4.addItems(names)
+                curveList5.addItems(names)
+
+        cancelButton = wdg.QPushButton("Cancel")
+        previewButton = wdg.QPushButton("Preview")
+        acceptButton = wdg.QPushButton("Accept")
+
+        layout.addWidget(cancelButton, 10, 0, 1, 1)
+        layout.addWidget(previewButton, 10, 1, 1, 1)
+        layout.addWidget(acceptButton, 10, 2, 1, 1)
+
+        # callbacks
+        curveList1.itemPressed.connect(lambda: self.loft_curves_highlighted(numberOfCurves, curveList1.selectedItems(), curveList2.selectedItems(), curveList3.selectedItems(), curveList4.selectedItems(), curveList5.selectedItems()))
+        curveList2.itemPressed.connect(lambda: self.loft_curves_highlighted(numberOfCurves, curveList1.selectedItems(), curveList2.selectedItems(), curveList3.selectedItems(), curveList4.selectedItems(), curveList5.selectedItems()))
+        curveList3.itemPressed.connect(lambda: self.loft_curves_highlighted(numberOfCurves, curveList1.selectedItems(), curveList2.selectedItems(), curveList3.selectedItems(), curveList4.selectedItems(), curveList5.selectedItems()))
+        curveList4.itemPressed.connect(lambda: self.loft_curves_highlighted(numberOfCurves, curveList1.selectedItems(), curveList2.selectedItems(), curveList3.selectedItems(), curveList4.selectedItems(), curveList5.selectedItems()))
+        curveList5.itemPressed.connect(lambda: self.loft_curves_highlighted(numberOfCurves, curveList1.selectedItems(), curveList2.selectedItems(), curveList3.selectedItems(), curveList4.selectedItems(), curveList5.selectedItems()))
+
+        cancelButton.clicked.connect(lambda: self.escape_container(self.surfaceContainer))
+        previewButton.clicked.connect(lambda: self.preview_loft(numberOfCurves, curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5))
+        acceptButton.clicked.connect(lambda: self.accept_loft(numberOfCurves, curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5))
+
+        self.optionLayout.addWidget(self.surfaceContainer)
+
+
+    def preview_loft(self, numberOfCurves, curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5):
+        
+        selectedCurves = []
+        match numberOfCurves:
+            case 2:
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                if len(curveList2.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList1.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList2.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+            case 3:
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList3.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList1.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList2.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList3.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+            case 4:
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList3.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList4.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList1.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList2.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList3.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList4.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+            case 5:
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList3.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList4.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList5.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList1.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList2.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList3.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList4.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList5.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+        loftedSurface = LoftedSurface(f"loft{self.featureTree.surfaceCount}", selectedCurves, 40)
+
+        loftedSurfaceTraces = loftedSurface.generate_traces()
+
+        self.setup_3d_plot()
+
+        for trace in loftedSurfaceTraces:
+            self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=loftedSurface.color)
+
+        self.sc.figure.canvas.draw()
+    
+
+    def accept_loft(self, numberOfCurves, curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5):
+        selectedCurves = []
+        match numberOfCurves:
+            case 2:
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                if len(curveList2.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList1.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList2.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+            case 3:
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList3.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList1.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList2.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList3.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+            case 4:
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList3.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList4.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList1.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList2.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList3.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList4.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+            case 5:
+                if len(curveList1.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList3.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList4.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                if len(curveList5.selectedItems()) == 0:
+                    print('no curves')
+                    return
+                
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList1.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList2.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList3.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList4.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+                for curve in self.featureTree.curves:
+                    if curve.name == curveList5.selectedItems()[0].text():
+                        selectedCurves.append(curve)
+
+        loftedSurface = LoftedSurface(f"loft{self.featureTree.surfaceCount}", selectedCurves, 40)
+
+        self.featureTree.add_surface(loftedSurface)
+
+        self.clear_mpl_container()
+
+        self.escape_container(self.surfaceContainer)
+
+
     def preview_surface(self, curveList1, curveList2, extrusion_depth, surface_type):
         print(curveList1.selectedItems())
         print(curveList2.selectedItems())
@@ -505,11 +901,107 @@ class MainWindow(wdg.QDialog):
             curve.color = 'blue'
 
         self.setup_3d_plot()
+
     
+    def loft_curves_highlighted(self, numberOfCurves, selectedItems1, selectedItems2, selectedItems3, selectedItems4, selectedItems5):
+        
+        print(selectedItems1)
+        print(selectedItems2)
 
+        orangeCurves = []
+        greenCurves = []
+        purpleCurves = []
+        yellowCurves = []
+        redCurves = []
+        match numberOfCurves:
+            case 2:
+                if len(selectedItems1) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems1[0].text():
+                            orangeCurves.append(curve)
+                if len(selectedItems2) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems2[0].text():
+                            greenCurves.append(curve)
+            case 3:
+                if len(selectedItems1) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems1[0].text():
+                            orangeCurves.append(curve)
+                if len(selectedItems2) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems2[0].text():
+                            greenCurves.append(curve)
 
-    def loftCalled(self, layout):
-        print('loft')
+                if len(selectedItems3) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems3[0].text():
+                            purpleCurves.append(curve)
+            case 4:
+                if len(selectedItems1) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems1[0].text():
+                            orangeCurves.append(curve)
+                if len(selectedItems2) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems2[0].text():
+                            greenCurves.append(curve)
+
+                if len(selectedItems3) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems3[0].text():
+                            purpleCurves.append(curve)
+
+                if len(selectedItems4):
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems4[0].text():
+                            yellowCurves.append(curve)
+            case 5:
+                if len(selectedItems1) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems1[0].text():
+                            orangeCurves.append(curve)
+                if len(selectedItems2) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems2[0].text():
+                            greenCurves.append(curve)
+
+                if len(selectedItems3) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems3[0].text():
+                            purpleCurves.append(curve)
+
+                if len(selectedItems4):
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems4[0].text():
+                            yellowCurves.append(curve)
+
+                if len(selectedItems5) != 0:
+                    for curve in self.featureTree.curves:
+                        if curve.name == selectedItems5[0].text():
+                            redCurves.append(curve)
+
+        blueCurves = list(set(self.featureTree.curves) - set(orangeCurves) - set(greenCurves) - set(purpleCurves) - set(yellowCurves) - set(redCurves))
+            
+        for curve in orangeCurves:
+            curve.color = 'orange'
+
+        for curve in greenCurves:
+            curve.color = 'green'
+
+        for curve in purpleCurves:
+            curve.color = 'purple'
+
+        for curve in yellowCurves:
+            curve.color = 'yellow'
+
+        for curve in redCurves:
+            curve.color = 'red'
+
+        for curve in blueCurves:
+            curve.color = 'blue'
+
+        self.setup_3d_plot()
 
 
     def revolveCalled(self, layout):

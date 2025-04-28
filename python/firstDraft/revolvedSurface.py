@@ -18,7 +18,7 @@ class RevolvedSurface:
 
         self.u_eval = np.linspace(0, 1, density)
 
-        self.w_eval = np.linspace(0, np.pi*2, density)
+        self.w_eval = np.linspace(0, rotation_degrees/60, density)
 
         print(self.w_eval)
 
@@ -212,6 +212,12 @@ if __name__ == "__main__":
         axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=myRevolvedSurface.color)
 
     axes.plot(curveFromSurf[:, 0], curveFromSurf[:, 1], curveFromSurf[:, 2])
+
+    axes.set_xlabel('X')
+
+    axes.set_ylabel('Y')
+
+    axes.set_zlabel('Z')
 
     plt.legend()
 

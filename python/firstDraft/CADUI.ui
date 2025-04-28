@@ -27,7 +27,7 @@
      <layout class="QGridLayout" name="gridLayout">
       <item row="0" column="0">
        <widget class="QWidget" name="widget" native="true">
-        <widget class="QWidget" name="">
+        <widget class="QWidget" name="layoutWidget">
          <property name="geometry">
           <rect>
            <x>-2</x>
@@ -66,9 +66,9 @@
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="transformationButton">
+       <widget class="QPushButton" name="surfaceIntersectionButton">
         <property name="text">
-         <string>transformation</string>
+         <string>surface intersection</string>
         </property>
        </widget>
       </item>
