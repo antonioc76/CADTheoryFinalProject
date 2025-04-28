@@ -18,7 +18,7 @@ class RevolvedSurface:
 
         self.u_eval = np.linspace(0, 1, density)
 
-        self.w_eval = np.linspace(0, np.radians(rotation_degrees), density)
+        self.w_eval = np.linspace(0, np.pi*2, density)
 
         print(self.w_eval)
 
@@ -68,7 +68,7 @@ class RevolvedSurface:
 
         p_u_debug_trace2 = self.curve.generate_trace()
 
-        # axes.plot(axis_debug_trace2[:, 0], axis_debug_trace2[:, 1], axis_debug_trace2[:, 2], label='axis debug trace 2')
+        axes.plot(axis_debug_trace2[:, 0], axis_debug_trace2[:, 1], axis_debug_trace2[:, 2], label='axis debug trace 2')
 
         axes.plot(p_u_debug_trace2[:, 0], p_u_debug_trace2[:, 1], p_u_debug_trace2[:, 2], label='p_u debug trace 2')
 
@@ -101,6 +101,8 @@ class RevolvedSurface:
                                 [0, 0, 1]])
         
         S_u_w = P_u * W_rotation
+
+        sp.pretty_print(S_u_w)
 
         return S_u_w
     
@@ -200,7 +202,7 @@ if __name__ == "__main__":
 
     myLine = StraightLine("line", sp.Matrix([[0, 0, 1]]), sp.Matrix([[1, 0, 0]]), 40, myPlane)
 
-    myRevolvedSurface = RevolvedSurface("surface 1", myLine, myAxis, 10, axes, 40)
+    myRevolvedSurface = RevolvedSurface("surface 1", myLine, myAxis, 180, axes, 40)
 
     revolvedSurfaceEval = myRevolvedSurface.generate_traces()
 
