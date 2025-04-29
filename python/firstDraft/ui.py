@@ -25,6 +25,9 @@ from closedUniformBSpline import ClosedUniformBSpline
 from cylindricalSurface import CylindricalSurface
 from ruledSurface import RuledSurface
 from loftedSurface import LoftedSurface
+from sweptSurface import SweptSurface
+
+from intersectionCurve import IntersectionCurve
 
 
 class FeatureTree:
@@ -97,6 +100,7 @@ class MainWindow(wdg.QDialog):
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = False
         self.surface_dialogue_displayed = False
+        self.intersection_dialogue_displayed = False
 
         # setup plot
         self.setup_3d_plot()
@@ -115,6 +119,7 @@ class MainWindow(wdg.QDialog):
         self.sketchPlaneButton.clicked.connect(self.sketch_plane_dialogue)
         self.sketchButton.clicked.connect(self.sketch_dialogue)
         self.surfaceButton.clicked.connect(self.surface_dialogue)
+        self.surfaceIntersectionButton.clicked.connect(self.intersection_dialogue)
 
 
     def setup_3d_plot(self):
@@ -152,13 +157,188 @@ class MainWindow(wdg.QDialog):
             self.mplContainer.itemAt(i).widget().setParent(None)        
 
 
+    def intersection_dialogue(self):
+        self.clear_option_layout()
+
+        if self.intersection_dialogue_displayed == True:
+            return
+        
+        self.color_all_sketchplanes_blue()
+
+        self.color_all_curves_blue()
+
+        self.color_all_surfaces_green()
+
+        self.setup_3d_plot()
+
+        self.angle_widgets_displayed = False
+        self.offset_widgets_displayed = False
+
+        self.intersectionContainer = wdg.QWidget()
+        layout = wdg.QGridLayout(self.intersectionContainer)
+
+        surfaceLabel1 = wdg.QLabel("select surface 1")
+        surfaceList1 = wdg.QListWidget()
+
+        surfaceLabel2 = wdg.QLabel("select surface 2")
+        surfaceList2 = wdg.QListWidget()
+
+        names = [curve.name for curve in self.featureTree.surfaces]
+
+        surfaceList1.addItems(names)
+        surfaceList2.addItems(names)
+
+        layout.addWidget(surfaceLabel1, 1, 0, 1, 4)
+        layout.addWidget(surfaceList1, 2, 0, 1, 4)
+        layout.addWidget(surfaceLabel2, 3, 0, 1, 4)
+        layout.addWidget(surfaceList2, 4, 0, 1, 4)
+
+        intersectionEscapeButton = wdg.QPushButton("Cancel")
+        intersectionPlotButton = wdg.QPushButton("Preview")
+        intersectionAcceptButton = wdg.QPushButton("Accept")
+
+        layout.addWidget(intersectionEscapeButton, 9, 0)
+        layout.addWidget(intersectionPlotButton, 9, 1)
+        layout.addWidget(intersectionAcceptButton, 9, 2)
+
+        surfaceList1.itemClicked.connect(lambda: self.surface_highlighted(surfaceList1.selectedItems(), surfaceList2.selectedItems()))
+        surfaceList2.itemClicked.connect(lambda: self.surface_highlighted(surfaceList1.selectedItems(), surfaceList2.selectedItems()))
+
+        # bottom button callbacks
+        intersectionEscapeButton.clicked.connect(lambda: self.escape_container(self.intersectionContainer))
+        intersectionPlotButton.clicked.connect(lambda: self.preview_intersection(surfaceList1.selectedItems(), surfaceList2.selectedItems()))
+        intersectionAcceptButton.clicked.connect(lambda: self.accept_intersection(surfaceList1.selectedItems(), surfaceList2.selectedItems()))
+
+        # flags
+        self.surface_dialogue_displayed = False
+        self.sketch_plane_dialogue_displayed = False
+        self.sketch_dialogue_displayed = False
+        self.sketch_displayed = False
+        self.intersection_dialogue_displayed = True
+
+        self.optionLayout.addWidget(self.intersectionContainer)
+
+
+    def surface_highlighted(self, selectedItems1, selectedItems2):
+        orangeSurfaces = []
+        purpleSurfaces = []
+        if len(selectedItems1) != 0:
+            for surface in self.featureTree.surfaces:
+                if surface.name == selectedItems1[0].text():
+                    orangeSurfaces.append(surface)
+
+        if len(selectedItems2) != 0:
+            for surface in self.featureTree.surfaces:
+                if surface.name == selectedItems2[0].text():
+                    purpleSurfaces.append(surface)
+
+        greenSurfaces = list(set(self.featureTree.surfaces) - set(orangeSurfaces) - set(purpleSurfaces))
+
+        for surface in orangeSurfaces:
+            surface.color = 'orange'
+
+        for surface in purpleSurfaces:
+            surface.color = 'purple'
+
+        for surface in greenSurfaces:
+            surface.color = 'green'
+
+        self.setup_3d_plot()
+
+
+    def preview_intersection(self, selectedItems1, selectedItems2):
+        p0 = sp.Matrix([[-100, -100, 0]])
+        p1 = sp.Matrix([[-100, 100, 0]])
+
+        q0 = sp.Matrix([[100, -100, 0]])
+        q1 = sp.Matrix([[100, 100, 0]])
+
+        sketchPlane = SketchPlane(f"Plane{self.featureTree.sketchPlanesCount}", 'xy', 10, p0, p1, q0, q1, color='blue')
+
+        if len(selectedItems1) == 0:
+            print('no selected first surface')
+            return
+        
+        if len(selectedItems2) == 0:
+            print('no selected second surface')
+            return
+        
+        for surface in self.featureTree.surfaces:
+            if surface.name == selectedItems1[0].text():
+                selectedSurface1 = surface
+            elif surface.name == selectedItems2[0].text():
+                selectedSurface2 = surface
+
+        if selectedSurface1 is None or selectedSurface1 is None:
+            return
+        
+        intersectionCurve = IntersectionCurve(f"curve{self.featureTree.curveCount}", selectedSurface1, selectedSurface2, 100, 0.25, sketchPlane)
+    
+        intersectionCurveTrace = intersectionCurve.curve_itself.generate_trace()
+
+        self.setup_3d_plot()
+
+        self.sc.axes.plot(intersectionCurveTrace[:, 0], intersectionCurveTrace[:, 1], intersectionCurveTrace[:, 2])
+
+        self.sc.figure.canvas.draw()
+
+
+    def accept_intersection(self, selectedItems1, selectedItems2):
+        p0 = sp.Matrix([[-100, -100, 0]])
+        p1 = sp.Matrix([[-100, 100, 0]])
+
+        q0 = sp.Matrix([[100, -100, 0]])
+        q1 = sp.Matrix([[100, 100, 0]])
+
+        sketchPlane = SketchPlane(f"Plane{self.featureTree.sketchPlanesCount}", 'xy', 10, p0, p1, q0, q1, color='blue')
+
+        if len(selectedItems1) == 0:
+            print('no selected first surface')
+            return
+        
+        if len(selectedItems2) == 0:
+            print('no selected second surface')
+            return
+        
+        for surface in self.featureTree.surfaces:
+            if surface.name == selectedItems1[0].text():
+                selectedSurface1 = surface
+            elif surface.name == selectedItems2[0].text():
+                selectedSurface2 = surface
+
+        if selectedSurface1 is None or selectedSurface1 is None:
+            return
+        
+        intersectionCurve = IntersectionCurve(f"curve{self.featureTree.curveCount}", selectedSurface1, selectedSurface2, 100, 0.25, sketchPlane)
+    
+        self.featureTree.add_curve(intersectionCurve.curve_itself)
+
+        self.draw_features()
+
+        self.color_all_sketchplanes_blue()
+
+        self.color_all_curves_blue()
+        
+        self.color_all_surfaces_green()
+
+        self.setup_3d_plot()
+
+        self.clear_option_layout()
+
+
     def surface_dialogue(self):
+        self.clear_option_layout()
+
         self.surface_type = None
 
         if self.surface_dialogue_displayed == True: 
             return
-        
+
         self.color_all_sketchplanes_blue()
+
+        self.color_all_curves_blue()
+
+        self.color_all_surfaces_green()
         
         self.setup_3d_plot()
 
@@ -177,12 +357,14 @@ class MainWindow(wdg.QDialog):
         cylindricalButton = wdg.QPushButton("Extruded Surface")
         ruledButton = wdg.QPushButton("Ruled Surface")
         loftButton = wdg.QPushButton("Loft Surface")
-        revolveButton = wdg.QPushButton("Swept Surface")
+        sweptButton = wdg.QPushButton("Swept Surface")
+        deleteCurvesButton = wdg.QPushButton("Delete Curves")
 
         layout.addWidget(cylindricalButton, 0, 0, Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(ruledButton, 0, 1, Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(loftButton, 0, 2, Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(revolveButton, 0, 3, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(sweptButton, 1, 2, Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(deleteCurvesButton, 1, 3, Qt.AlignmentFlag.AlignCenter)
 
         curveLabel1 = wdg.QLabel("Select Curve")
         curveList1 = wdg.QListWidget()
@@ -205,7 +387,9 @@ class MainWindow(wdg.QDialog):
         cylindricalButton.clicked.connect(lambda: self.cylindricalCalled(layout, depthLabel, depthField, curveLabel1, curveList1))
         ruledButton.clicked.connect(lambda: self.ruledCalled(layout, curveLabel1, curveList1, curveLabel2, curveList2))
         loftButton.clicked.connect(lambda: self.loftCalled(curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5))
-        revolveButton.clicked.connect(lambda: self.revolveCalled(layout))
+        sweptButton.clicked.connect(lambda: self.sweptCalled(layout, curveLabel1, curveList1, curveLabel2, curveList2))
+
+        deleteCurvesButton.clicked.connect(lambda: self.deleteCurvesCalled(layout, curveLabel1, curveList1))
 
         surfaceEscapeButton = wdg.QPushButton("Cancel")
         surfacePlotButton = wdg.QPushButton("Preview")
@@ -229,6 +413,44 @@ class MainWindow(wdg.QDialog):
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = False
         self.sketch_displayed = False
+        self.intersection_dialogue_displayed = False
+
+
+    def deleteCurvesCalled(self, layout, curveLabel1, curveList1):
+        names = [curve.name for curve in self.featureTree.curves]
+
+        curveLabel1.setText("select curve for deletion")
+        curveList1.addItems(names)
+
+        layout.addWidget(curveLabel1, 1, 0, 1, 4)
+        layout.addWidget(curveList1, 2, 0, 1, 4)
+
+        deleteButton = wdg.QPushButton("delete")
+
+        layout.addWidget(deleteButton)
+
+        # callbacks
+        curveList1.itemPressed.connect(lambda: self.curve_highlighted(curveList1.selectedItems()))
+        deleteButton.clicked.connect(lambda: self.deleteCurves(curveList1.selectedItems()))
+
+
+    def deleteCurves(self, selectedItems):
+        if len(selectedItems) == 0:
+            return
+        
+        forDeletion = []
+        for curve in self.featureTree.curves:
+            for item in selectedItems:
+                if curve.name == item.text():
+                    forDeletion.append(curve)
+
+        self.featureTree.curves = list(set(self.featureTree.curves) - set(forDeletion))
+
+        self.clear_option_layout()
+
+        self.setup_3d_plot()
+
+        self.draw_features()
 
 
     def loftCalled(self, curveLabel1, curveLabel2, curveLabel3, curveLabel4, curveLabel5, curveList1, curveList2, curveList3, curveList4, curveList5):
@@ -246,7 +468,11 @@ class MainWindow(wdg.QDialog):
         layout.addWidget(numberOfCurvesDropdown, 1, 1, 1, 1)
         layout.addWidget(acceptNumberOfCurvesButton, 1, 2, 1, 1)
 
+        self.color_all_sketchplanes_blue()
+
         self.color_all_curves_blue()
+
+        self.color_all_surfaces_green()
 
         self.setup_3d_plot()
 
@@ -724,6 +950,56 @@ class MainWindow(wdg.QDialog):
 
                 self.sc.figure.canvas.draw()
 
+            case 'swept':
+                selectedCurves1 = []
+                selectedCurves2 = []
+                if len(curveList1.selectedItems()) == 0:
+                    print('no first curves')
+                    return
+                
+                else:
+                    print(curveList1.selectedItems()[0].text())
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no path curves')
+                    return
+                
+                else:
+                    print(curveList2.selectedItems()[0].text)
+                
+                for curve in self.featureTree.curves:
+                    for item in curveList1.selectedItems():
+                        if curve.name == item.text():
+                            selectedCurves1.append(curve)
+
+                    for item in curveList2.selectedItems():
+                        if curve.name == item.text():
+                            selectedPathCurve = curve
+
+                if selectedCurves1 is None:
+                    print('no selected first curve')
+                    return
+                
+                if selectedPathCurve is None:
+                    print('no selected path curve')
+                    return
+                
+                surface_traces_list = []
+
+                for i in range(len(selectedCurves1)):
+                    mySurface = SweptSurface(f"Surface{self.featureTree.surfaceCount}", selectedCurves1[i], selectedPathCurve, self.sc.axes, False, 10)
+                    surface_traces = mySurface.generate_traces()
+                    surface_traces_list.append(surface_traces)
+
+                self.setup_3d_plot()
+
+                for surf_traces in surface_traces_list:
+                    for trace in surf_traces:
+                        self.sc.axes.plot(trace[:, 0], trace[:, 1], trace[:, 2], color=mySurface.color)
+
+                self.sc.figure.canvas.draw()
+
+
 
     def accept_surface(self, curveList1, curveList2, extrusion_depth, surface_type):
         match surface_type:
@@ -806,6 +1082,48 @@ class MainWindow(wdg.QDialog):
 
                 self.escape_container(self.surfaceContainer)
 
+            case 'swept':
+                selectedCurves1 = []
+                selectedCurves2 = []
+                if len(curveList1.selectedItems()) == 0:
+                    print('no first curves')
+                    return
+                
+                else:
+                    print(curveList1.selectedItems()[0].text())
+                
+                if len(curveList2.selectedItems()) == 0:
+                    print('no path curves')
+                    return
+                
+                else:
+                    print(curveList2.selectedItems()[0].text)
+                
+                for curve in self.featureTree.curves:
+                    for item in curveList1.selectedItems():
+                        if curve.name == item.text():
+                            selectedCurves1.append(curve)
+
+                    for item in curveList2.selectedItems():
+                        if curve.name == item.text():
+                            selectedPathCurve = curve
+
+                if selectedCurves1 is None:
+                    print('no selected first curve')
+                    return
+                
+                if selectedPathCurve is None:
+                    print('no selected path curve')
+                    return
+
+                for i in range(len(selectedCurves1)):
+                    mySurface = SweptSurface(f"Surface{self.featureTree.surfaceCount}", selectedCurves1[i], selectedPathCurve, self.sc.axes, False, 10)
+                    self.featureTree.add_surface(mySurface)
+
+                self.clear_mpl_container()
+
+                self.escape_container(self.surfaceContainer)
+
     
     def cylindricalCalled(self, layout, depthLabel, depthField, curveLabel: wdg.QLabel, curveList):
         curveLabel.setText("Select Curves")
@@ -813,7 +1131,11 @@ class MainWindow(wdg.QDialog):
         layout.addWidget(depthLabel, 8, 1)
         layout.addWidget(depthField, 8, 2)
 
+        self.color_all_sketchplanes_blue()
+
         self.color_all_curves_blue()
+
+        self.color_all_surfaces_green()
 
         self.setup_3d_plot()
 
@@ -821,7 +1143,7 @@ class MainWindow(wdg.QDialog):
 
         curveList.addItems(names)
 
-        layout.addWidget(curveLabel, 1, 0, 1, 4)
+        layout.addWidget(curveLabel, 1, 0, 1, 2)
         layout.addWidget(curveList, 2, 0, 1, 4)
 
         # callbacks
@@ -1004,15 +1326,67 @@ class MainWindow(wdg.QDialog):
         self.setup_3d_plot()
 
 
-    def revolveCalled(self, layout):
-        print('revolve')
+    def sweptCalled(self, layout, curveLabel1: wdg.QLabel, curveList1, curveLabel2: wdg.QLabel, curveList2):
+        curveLabel1.setText("Select First Curve")
+
+        curveLabel2.setText("Select Path Curve")
+
+        names = [curve.name for curve in self.featureTree.curves]
+
+        curveList1.addItems(names)
+        curveList2.addItems(names)
+
+        layout.addWidget(curveLabel1, 1, 0, 1, 4)
+        layout.addWidget(curveList1, 2, 0, 1, 4)
+
+        layout.addWidget(curveLabel2, 3, 0, 1, 4)
+        layout.addWidget(curveList2, 4, 0, 1, 4)
+
+        curveList1.itemPressed.connect(lambda: self.swept_curves_highlighted(curveList1.selectedItems(), curveList2.selectedItems()))
+        curveList2.itemPressed.connect(lambda: self.swept_curves_highlighted(curveList1.selectedItems(), curveList2.selectedItems()))
+
+        self.surface_type = 'swept'
+
+    
+    def swept_curves_highlighted(self, selectedItems1, selectedItems2):
+        if len(selectedItems1) == 0 and len(selectedItems2):
+            return
+        
+        orangeCurves = []
+        for curve in self.featureTree.curves:
+            for item in selectedItems1:
+                if curve.name == item.text():
+                    orangeCurves.append(curve)
+
+        greenCurves = []
+        for curve in self.featureTree.curves:
+            for item in selectedItems2:
+                if curve.name == item.text():
+                    greenCurves.append(curve)
+
+        blueCurves = list(set(self.featureTree.curves) - set(orangeCurves) - set(greenCurves))
+            
+        for curve in orangeCurves:
+            curve.color = 'orange'
+
+        for curve in greenCurves:
+            curve.color = 'green'
+
+        for curve in blueCurves:
+            curve.color = 'blue'
+
+        self.setup_3d_plot()
 
 
     def sketch_dialogue(self):
         if self.sketch_dialogue_displayed == True: 
             return
-        
+
         self.color_all_sketchplanes_blue()
+
+        self.color_all_curves_blue()
+
+        self.color_all_surfaces_green()
 
         self.setup_3d_plot()
         
@@ -1122,6 +1496,7 @@ class MainWindow(wdg.QDialog):
         self.sketch_displayed = True
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = False
+        self.intersection_dialogue_displayed = False
 
 
     def draw_CUBSpline(self, selectedSketchPlane : SketchPlane):
@@ -1885,6 +2260,7 @@ class MainWindow(wdg.QDialog):
         self.sketch_displayed = True
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = False
+        self.intersection_dialogue_displayed = False
 
 
     def sketch_plane_dialogue(self):
@@ -1892,6 +2268,10 @@ class MainWindow(wdg.QDialog):
             return
         
         self.color_all_sketchplanes_blue()
+
+        self.color_all_sketchplanes_blue()
+
+        self.color_all_surfaces_green()
         
         self.setup_3d_plot()
 
@@ -1947,10 +2327,17 @@ class MainWindow(wdg.QDialog):
         self.sketch_plane_dialogue_displayed = False
         self.sketch_dialogue_displayed = False
         self.sketch_displayed = False
+        self.surface_dialogue_displayed = False
+        self.intersection_dialogue_displayed = False
 
         # wipe canvas
         self.color_all_sketchplanes_blue()
+
+        self.color_all_sketchplanes_blue()
+
         self.color_all_curves_blue()
+
+        self.color_all_surfaces_green()
 
         self.clear_mpl_container()
 
@@ -2219,6 +2606,10 @@ class MainWindow(wdg.QDialog):
     def color_all_curves_blue(self):
         for curve in self.featureTree.curves:
             curve.color = 'blue'
+
+    def color_all_surfaces_green(self):
+        for surface in self.featureTree.surfaces:
+            surface.color = 'green'
 
 
 if __name__ == "__main__":
