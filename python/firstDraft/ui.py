@@ -419,8 +419,10 @@ class MainWindow(wdg.QDialog):
     def deleteCurvesCalled(self, layout, curveLabel1, curveList1):
         names = [curve.name for curve in self.featureTree.curves]
 
-        curveLabel1.setText("select curve for deletion")
+        curveLabel1.setText("select curves for deletion")
         curveList1.addItems(names)
+
+        curveList1.setSelectionMode(wdg.QAbstractItemView.SelectionMode.ExtendedSelection)
 
         layout.addWidget(curveLabel1, 1, 0, 1, 4)
         layout.addWidget(curveList1, 2, 0, 1, 4)
@@ -1428,16 +1430,26 @@ class MainWindow(wdg.QDialog):
 
 
     def curve_highlighted(self, selectedItems):
+        print("curve highlighted")
         if len(selectedItems) == 0:
             return
         
+        orangeCurves = []
         for item in selectedItems:
+            print(item.text())
             for curve in self.featureTree.curves:
                 if curve.name == item.text():
-                    curve.color = 'orange'
+                    orangeCurves.append(curve)
 
-                else:
-                    curve.color = 'blue'
+        blueCurves = list(set(self.featureTree.curves) - set(orangeCurves))
+            
+        for curve in orangeCurves:
+            curve.color = 'orange'
+
+        for curve in blueCurves:
+            curve.color = 'blue'
+
+        self.setup_3d_plot()
 
 
     def sketch_plane_highlighted(self, selectedItem):
