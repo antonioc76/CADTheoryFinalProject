@@ -234,8 +234,6 @@ class MainWindow(wdg.QDialog):
         if selectedSurface is not None:
             self.featureTree.surfaces.remove(selectedSurface)
 
-        self.clear_option_layout()
-
         self.setup_3d_plot()
 
         self.draw_features() 
@@ -294,8 +292,11 @@ class MainWindow(wdg.QDialog):
         if selectedSurface1 is None or selectedSurface1 is None:
             return
         
-        intersectionCurve = IntersectionCurve(f"curve{self.featureTree.curveCount}", selectedSurface1, selectedSurface2, 100, 0.25, sketchPlane)
-    
+        intersectionCurve = IntersectionCurve(f"curve{self.featureTree.curveCount}", selectedSurface1, selectedSurface2, 100, 1, sketchPlane)
+
+        if intersectionCurve is None:
+            return
+
         intersectionCurveTrace = intersectionCurve.curve_itself.generate_trace()
 
         self.setup_3d_plot()
@@ -331,8 +332,11 @@ class MainWindow(wdg.QDialog):
         if selectedSurface1 is None or selectedSurface1 is None:
             return
         
-        intersectionCurve = IntersectionCurve(f"curve{self.featureTree.curveCount}", selectedSurface1, selectedSurface2, 100, 0.25, sketchPlane)
+        intersectionCurve = IntersectionCurve(f"curve{self.featureTree.curveCount}", selectedSurface1, selectedSurface2, 100, 1, sketchPlane)
     
+        if intersectionCurve is None:
+            return
+
         self.featureTree.add_curve(intersectionCurve.curve_itself)
 
         self.draw_features()
@@ -469,8 +473,6 @@ class MainWindow(wdg.QDialog):
                     forDeletion.append(curve)
 
         self.featureTree.curves = list(set(self.featureTree.curves) - set(forDeletion))
-
-        self.clear_option_layout()
 
         self.setup_3d_plot()
 

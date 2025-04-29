@@ -35,6 +35,9 @@ class IntersectionCurve():
 
         self.intersection_points = self.get_intersection_points(tolerance)
 
+        if self.intersection_points.shape[0] < 4:
+            return None
+
         G_intersection = sp.Matrix([self.intersection_points[0], self.intersection_points[self.intersection_points.shape[0] // 3], self.intersection_points[(self.intersection_points.shape[0]-1) * 2 // 3], self.intersection_points[self.intersection_points.shape[0]-1]])
 
         sp.pretty_print(G_intersection)
