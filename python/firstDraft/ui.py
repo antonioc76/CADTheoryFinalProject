@@ -196,10 +196,12 @@ class MainWindow(wdg.QDialog):
         intersectionEscapeButton = wdg.QPushButton("Cancel")
         intersectionPlotButton = wdg.QPushButton("Preview")
         intersectionAcceptButton = wdg.QPushButton("Accept")
+        deleteSurfaceButton = wdg.QPushButton("Delete Surface 1")
 
         layout.addWidget(intersectionEscapeButton, 9, 0)
         layout.addWidget(intersectionPlotButton, 9, 1)
         layout.addWidget(intersectionAcceptButton, 9, 2)
+        layout.addWidget(deleteSurfaceButton, 9, 3)
 
         surfaceList1.itemClicked.connect(lambda: self.surface_highlighted(surfaceList1.selectedItems(), surfaceList2.selectedItems()))
         surfaceList2.itemClicked.connect(lambda: self.surface_highlighted(surfaceList1.selectedItems(), surfaceList2.selectedItems()))
@@ -208,6 +210,7 @@ class MainWindow(wdg.QDialog):
         intersectionEscapeButton.clicked.connect(lambda: self.escape_container(self.intersectionContainer))
         intersectionPlotButton.clicked.connect(lambda: self.preview_intersection(surfaceList1.selectedItems(), surfaceList2.selectedItems()))
         intersectionAcceptButton.clicked.connect(lambda: self.accept_intersection(surfaceList1.selectedItems(), surfaceList2.selectedItems()))
+        deleteSurfaceButton.clicked.connect(lambda: self.deleteSurface(surfaceList1.selectedItems()))
 
         # flags
         self.surface_dialogue_displayed = False
@@ -217,6 +220,25 @@ class MainWindow(wdg.QDialog):
         self.intersection_dialogue_displayed = True
 
         self.optionLayout.addWidget(self.intersectionContainer)
+
+
+    def deleteSurface(self, selectedItems):
+        selectedSurface = None
+        if len(selectedItems) == 0:
+            return
+        
+        for surface in self.featureTree.surfaces:
+            if surface.name == selectedItems[0].text():
+                selectedSurface = surface
+    
+        if selectedSurface is not None:
+            self.featureTree.surfaces.remove(selectedSurface)
+
+        self.clear_option_layout()
+
+        self.setup_3d_plot()
+
+        self.draw_features() 
 
 
     def surface_highlighted(self, selectedItems1, selectedItems2):
@@ -427,7 +449,7 @@ class MainWindow(wdg.QDialog):
         layout.addWidget(curveLabel1, 1, 0, 1, 4)
         layout.addWidget(curveList1, 2, 0, 1, 4)
 
-        deleteButton = wdg.QPushButton("delete")
+        deleteButton = wdg.QPushButton("Delete")
 
         layout.addWidget(deleteButton)
 
